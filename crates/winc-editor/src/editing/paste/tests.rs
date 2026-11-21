@@ -1,0 +1,286 @@
+//! 粘贴文件与图片的测试：重名规则、复制目录与符号链接、Markdown 链接、扩展名猜测与 PNG 编码。
+
+use std::fs;
+
+use super::*;
+use crate::test_util::scratch;
+
+#[test]
+fn names_follow_the_numbered_and_copy_schemes() {
+    let split = |name: &str| split_name(OsStr::new(name));
+    assert_eq!(split("a.tar.gz"), ("a.tar".into(), ".gz".into()));
+    assert_eq!(split(".env"), (".env".into(), "".into()));
+    assert_eq!(split("Makefile"), ("Makefile".into(), "".into()));
+    let name =
+        |stem: &str, ext: &str, n, naming| candidate(OsStr::new(stem), OsStr::new(ext), n, naming);
+    assert_eq!(name("image", ".png", 0, Naming::Numbered), "image.png");
+    assert_eq!(name("image", ".png", 2, Naming::Numbered), "image-2.png");
+    assert_eq!(name("a", ".txt", 1, Naming::Copy), "a 副本.txt");
+    assert_eq!(name("a", ".txt", 2, Naming::Copy), "a 副本 2.txt");
+    // 不是 UTF-8 的名字原样保留，副本只加上后缀。
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        let stem = OsStr::from_bytes(b"caf\xE9");
+        let copy = candidate(stem, OsStr::new(".txt"), 1, Naming::Copy);
+        assert_eq!(copy.as_bytes(), b"caf\xE9 \xE5\x89\xAF\xE6\x9C\xAC.txt");
+    }
+}
+
+#[test]
+fn saved_images_never_overwrite() {
+    let dir = scratch("image");
+    let first = save_image(&dir, IMAGE_NAME, b"one").unwrap();
+    let second = save_image(&dir, IMAGE_NAME, b"two").unwrap();
+    assert_eq!(first, dir.join("image.png"));
+    assert_eq!(second, dir.join("image-1.png"));
+    assert_eq!(fs::read(&first).unwrap(), b"one");
+    assert_eq!(fs::read(&second).unwrap(), b"two");
+    // 图片目录不存在时先创建。
+    let third = save_image(&dir.join("assets/notes"), "shot.png", b"three").unwrap();
+    assert_eq!(third, dir.join("assets/notes/shot.png"));
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn image_folder_and_name_follow_the_settings() {
+    let doc = Path::new("/p/docs/notes.md");
+    assert_eq!(image_folder(doc, None), Path::new("/p/docs"));
+    assert_eq!(image_folder(doc, Some(" ")), Path::new("/p/docs"));
+    assert_eq!(
+        image_folder(doc, Some("assets")),
+        Path::new("/p/docs/assets")
+    );
+    let typora = image_folder(doc, Some("${filename}.assets"));
+    assert_eq!(typora, Path::new("/p/docs/notes.assets"));
+    assert_eq!(
+        image_folder(doc, Some("../img")),
+        Path::new("/p/docs/../img")
+    );
+    assert_eq!(image_folder(doc, Some("/srv/img")), Path::new("/srv/img"));
+
+    let date = || "20261119-153012".to_owned();
+    assert_eq!(image_name(doc, None, date), "image.png");
+    assert_eq!(
+        image_name(doc, Some("${filename}-${date}"), date),
+        "notes-20261119-153012.png"
+    );
+    // 没有 `${date}` 时不读取时间；名字中的路径分隔符被替换。
+    let name = image_name(doc, Some("a/b"), || unreachable!());
+    assert_eq!(name, "a-b.png");
+}
+
+#[test]
+fn copies_files_and_folders_without_overwriting() {
+    let dir = scratch("copy");
+    let src = dir.join("src");
+    fs::create_dir_all(src.join("folder/inner")).unwrap();
+    fs::write(src.join("a.txt"), "a").unwrap();
+    fs::write(src.join("folder/inner/b.txt"), "b").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink("a.txt", src.join("link")).unwrap();
+    let dest = dir.join("dest");
+    fs::create_dir(&dest).unwrap();
+
+    let sources = [src.join("a.txt"), src.join("folder")];
+    let copied = copy_into(&sources, &dest, &Copying::default()).unwrap();
+    assert_eq!(copied, [dest.join("a.txt"), dest.join("folder")]);
+    assert_eq!(
+        fs::read_to_string(dest.join("folder/inner/b.txt")).unwrap(),
+        "b"
+    );
+
+    // 再粘贴一次：同名项已存在，按重名规则取名，原有内容不变。
+    fs::write(dest.join("a.txt"), "changed").unwrap();
+    let again = copy_into(&sources, &dest, &Copying::default()).unwrap();
+    assert_eq!(again, [dest.join("a 副本.txt"), dest.join("folder 副本")]);
+    assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "changed");
+    let third = copy_into(&sources[..1], &dest, &Copying::default()).unwrap();
+    assert_eq!(third, [dest.join("a 副本 2.txt")]);
+
+    // 某一项失败时停止，错误中带上之前复制好的各项。
+    let missing = src.join("gone.txt");
+    let error = copy_into(
+        &[sources[0].clone(), missing.clone()],
+        &dest,
+        &Copying::default(),
+    )
+    .unwrap_err();
+    assert_eq!(error.path, missing);
+    assert_eq!(error.done, [dest.join("a 副本 3.txt")]);
+
+    // 粘贴到源文件所在的目录：得到一个副本。
+    let beside = copy_into(&sources[..1], &src, &Copying::default()).unwrap();
+    assert_eq!(beside, [src.join("a 副本.txt")]);
+
+    // 符号链接复制为链接本身。
+    #[cfg(unix)]
+    {
+        let link = copy_into(&[src.join("link")], &dest, &Copying::default()).unwrap();
+        assert_eq!(fs::read_link(&link[0]).unwrap(), Path::new("a.txt"));
+    }
+
+    // 目录粘贴到自身：在旁边得到副本；粘贴到自身之内更深的位置则被拒绝。
+    let folder = src.join("folder");
+    let duplicate = copy_into(std::slice::from_ref(&folder), &folder, &Copying::default()).unwrap();
+    assert_eq!(duplicate, [src.join("folder 副本")]);
+    assert!(src.join("folder 副本/inner/b.txt").is_file());
+    let err = copy_into(
+        std::slice::from_ref(&src),
+        &src.join("folder"),
+        &Copying::default(),
+    )
+    .unwrap_err();
+    assert_eq!(err.error.kind(), io::ErrorKind::InvalidInput);
+    // 不存在的源报告是哪一项。
+    let missing = src.join("missing.txt");
+    let err = copy_into(std::slice::from_ref(&missing), &dest, &Copying::default()).unwrap_err();
+    assert_eq!(err.path, missing);
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn markdown_links_are_relative_and_escaped() {
+    let dir = scratch("links");
+    let docs = dir.join("docs");
+    fs::create_dir_all(docs.join("img")).unwrap();
+    fs::create_dir_all(dir.join("assets")).unwrap();
+    for file in [
+        "docs/img/a.png",
+        "assets/my logo.svg",
+        "assets/x(1.pdf",
+        "notes.txt",
+    ] {
+        fs::write(dir.join(file), "").unwrap();
+    }
+
+    let one = |file: &str| markdown_links(Some(&docs), Some(&dir), &[dir.join(file)]);
+    assert_eq!(
+        one("docs/img/a.png"),
+        Snippet {
+            text: "![a](img/a.png)".into(),
+            placeholder: Some(2..3),
+        }
+    );
+    // 空白和不配对的括号用尖括号括起来；文件写成链接，链接文字是完整的文件名。
+    assert_eq!(
+        one("assets/my logo.svg").text,
+        "![my logo](<../assets/my logo.svg>)"
+    );
+    assert_eq!(one("assets/x(1.pdf").text, "[x(1.pdf](<../assets/x(1.pdf>)");
+    assert_eq!(one("notes.txt").placeholder, Some(1..10));
+
+    // 多项之间用空格隔开，不选中占位文字。
+    let both = markdown_links(
+        Some(&docs),
+        Some(&dir),
+        &[dir.join("notes.txt"), dir.join("docs/img/a.png")],
+    );
+    assert_eq!(both.text, "[notes.txt](../notes.txt) ![a](img/a.png)");
+    assert_eq!(both.placeholder, None);
+
+    // 项目之外的文件，以及文档尚未保存时，写成绝对路径。
+    let outside = std::env::temp_dir().join(format!("winc-outside-{}.pdf", std::process::id()));
+    fs::write(&outside, "").unwrap();
+    let text = markdown_links(Some(&docs), Some(&dir), std::slice::from_ref(&outside)).text;
+    // 绝对路径：Unix 上以 `/` 开头，Windows 上以盘符开头（`C:/…`）。
+    let absolute = if cfg!(windows) { ":/" } else { "](/" };
+    assert!(
+        text.starts_with("[winc-outside-") && text.contains(absolute),
+        "{text}"
+    );
+    let unsaved = markdown_links(None, None, &[dir.join("notes.txt")]).text;
+    assert!(unsaved.contains(absolute), "{unsaved}");
+
+    let _ = fs::remove_file(&outside);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn images_from_outside_the_project_are_copied_next_to_the_document() {
+    let dir = scratch("bring");
+    let project = dir.join("project");
+    fs::create_dir_all(project.join("docs")).unwrap();
+    fs::write(project.join("inside.png"), "in").unwrap();
+    fs::write(dir.join("photo.JPG"), "out").unwrap();
+    fs::write(dir.join("report.pdf"), "pdf").unwrap();
+    fs::write(project.join("docs/photo.JPG"), "taken").unwrap();
+
+    let docs = project.join("docs");
+    let files = [
+        project.join("inside.png"),
+        dir.join("photo.JPG"),
+        dir.join("report.pdf"),
+    ];
+    let targets = bring_images(&docs, &docs, Some(&project), &files).unwrap();
+    // 项目里的图片和项目外的其他文件原样引用；项目外的图片复制到文档旁边，重名时加序号。
+    assert_eq!(targets[0], project.join("inside.png"));
+    assert_eq!(targets[1], docs.join("photo-1.JPG"));
+    assert_eq!(fs::read_to_string(&targets[1]).unwrap(), "out");
+    assert_eq!(targets[2], dir.join("report.pdf"));
+    // 设置了图片目录时复制到该目录，不存在时先创建。
+    let assets = docs.join("notes.assets");
+    let targets = bring_images(&docs, &assets, Some(&project), &files[1..2]).unwrap();
+    assert_eq!(targets, [assets.join("photo.JPG")]);
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn pasted_text_and_images_get_free_names_with_a_guessed_extension() {
+    let dir = scratch("names");
+    assert_eq!(text_file_name(&dir, "随便写点什么"), "untitled.txt");
+    fs::write(dir.join("untitled.txt"), "").unwrap();
+    assert_eq!(text_file_name(&dir, "还是文本"), "untitled-1.txt");
+    assert_eq!(image_file_name(&dir), "image.png");
+    fs::write(dir.join("image.png"), "").unwrap();
+    assert_eq!(image_file_name(&dir), "image-1.png");
+
+    for (text, ext) in [
+        ("  {\"a\": 1}\n", "json"),
+        ("[1, 2]", "json"),
+        ("<svg xmlns=\"http://www.w3.org/2000/svg\"/>", "svg"),
+        ("<?xml version=\"1.0\"?>\n<svg/>", "svg"),
+        ("<?xml version=\"1.0\"?>\n<plist/>", "xml"),
+        ("<!DOCTYPE html>\n<p>hi</p>", "html"),
+        ("#!/usr/bin/env python3\nprint(1)", "py"),
+        ("#!/bin/bash\necho hi", "sh"),
+        ("#!/usr/bin/env node\n", "js"),
+        ("# 标题\n正文", "txt"),
+        ("{ 不配对", "txt"),
+    ] {
+        assert_eq!(guess_extension(text), ext, "{text:?}");
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn rgba_pixels_round_trip_through_png() {
+    let pixels: Vec<u8> = (0..2 * 3 * 4).map(|i| (i * 10) as u8).collect();
+    let png = encode_png(2, 3, &pixels).unwrap();
+    let mut reader = png::Decoder::new(std::io::Cursor::new(png))
+        .read_info()
+        .unwrap();
+    let mut decoded = vec![0; reader.output_buffer_size().unwrap()];
+    let info = reader.next_frame(&mut decoded).unwrap();
+    assert_eq!((info.width, info.height), (2, 3));
+    assert_eq!(&decoded[..info.buffer_size()], pixels.as_slice());
+
+    // 尺寸与数据长度不符（2 × 2 只需 16 字节）、尺寸为 0：都不编码。
+    assert_eq!(encode_png(2, 2, &pixels), None);
+    assert_eq!(encode_png(0, 0, &[]), None);
+}
+
+#[test]
+fn link_targets_need_brackets_only_when_ambiguous() {
+    assert!(!needs_brackets("a/b(c).png"));
+    assert!(!needs_brackets(r"a\(b.png"));
+    assert!(!needs_brackets("中文/截图.png"));
+    assert!(needs_brackets("a b.png"));
+    assert!(needs_brackets("a)b.png"));
+    assert!(needs_brackets("(a.png"));
+    assert!(needs_brackets("<a.png"));
+    assert_eq!(escape_link_path("a <b>.png"), r"<a \<b\>.png>");
+    assert_eq!(escape_brackets("a[1]"), r"a\[1\]");
+}

@@ -1,0 +1,236 @@
+//! 提示条：编辑区右上角的提示、状态栏的临时消息，以及提示条上的按钮。
+
+use winc_i18n::t;
+
+use super::*;
+
+/// 点击提示条按钮后执行的操作。
+#[derive(Debug, Clone, PartialEq)]
+pub enum NoticeAction {
+    /// 「查看输出」：在只读标签中打开格式化工具的完整输出。
+    ShowOutput(String),
+    /// 「安装方法」：在只读标签中打开各个格式化工具的安装说明。
+    ///
+    /// `dir` 是文件所在的目录。
+    Install { tools: Vec<String>, dir: PathBuf },
+    /// 「去设置」：打开设置的格式化一页，在那里指定工具命令。
+    FormatSettings,
+    /// 「查看输出」：在只读标签中打开 Git 操作的输出。
+    GitOutput,
+    /// 「重新连接」：重新连接远端主机并回到其上的目录。
+    Reconnect(PathBuf),
+    /// 「取消」：取消正在进行的到远端主机的连接。
+    CancelConnect,
+    /// 「取消」：取消文件树里正在进行的复制。
+    CancelCopy,
+    /// 在系统文件管理器中显示这个路径，如刚下载到本机的文件。
+    Reveal(PathBuf),
+    /// 「以管理员身份重试…」：保存被系统拒绝的文档，经系统的授权对话框再保存一次。
+    SaveAsAdmin(DocumentId),
+    /// 「查看更新日志」：在阅读标签中打开上次运行的版本（没有记录时为 `None`）之后的各版。
+    ReleaseNotes(Option<String>),
+}
+
+/// 提示的种类，决定提示条左侧的图标和颜色。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NoticeKind {
+    /// 说明情况，不需要处理。
+    Info,
+    /// 操作完成。
+    Done,
+    /// 需要用户注意或处理，但操作没有失败。
+    #[default]
+    Warning,
+    /// 操作失败。
+    Error,
+}
+
+/// 到期后正在淡出的提示条。
+pub struct NoticeGhost {
+    /// 提示的种类。
+    pub kind: NoticeKind,
+    /// 提示的消息。
+    pub message: String,
+    /// 按钮上的文字；没有按钮时为 `None`。
+    pub label: Option<&'static str>,
+    /// 淡出的动画时钟。
+    pub clock: Clock,
+}
+
+impl NoticeAction {
+    /// 是否这条提示说明的事情正在进行：提示条上显示转动的图标，而不是提醒图标。
+    pub fn in_progress(&self) -> bool {
+        matches!(self, NoticeAction::CancelConnect | NoticeAction::CancelCopy)
+    }
+
+    /// 按钮上显示的文字。
+    pub fn label(&self) -> &'static str {
+        match self {
+            NoticeAction::ShowOutput(_) | NoticeAction::GitOutput => {
+                t!("workspace-notice-show-output")
+            }
+            NoticeAction::Install { .. } => t!("workspace-notice-install"),
+            NoticeAction::FormatSettings => t!("workspace-notice-open-settings"),
+            NoticeAction::Reconnect(_) => t!("workspace-notice-reconnect"),
+            NoticeAction::CancelConnect | NoticeAction::CancelCopy => {
+                t!("workspace-notice-cancel")
+            }
+            NoticeAction::ReleaseNotes(_) => t!("workspace-notice-release-notes"),
+            NoticeAction::Reveal(_) => crate::system::reveal_label(),
+            NoticeAction::SaveAsAdmin(_) => t!("workspace-save-admin"),
+        }
+    }
+}
+
+/// 状态栏消息（由 [`App::flash`] 设置）显示的时间（4 秒）。
+pub(in crate::app) const FLASH_DURATION: Duration = Duration::from_secs(4);
+
+/// 编辑区右上角提示条显示的时间（5 秒）。
+const NOTICE_DURATION: Duration = Duration::from_secs(5);
+
+/// 带按钮的提示条显示的时间（10 秒）；比普通提示更长，便于用户来得及点击。
+const NOTICE_ACTION_DURATION: Duration = Duration::from_secs(10);
+
+impl App {
+    /// 在状态栏显示一条临时消息，显示时间为 [`FLASH_DURATION`]，用于操作结果和一般提示。
+    ///
+    /// 隐藏状态栏时改用右上角的提示（[`App::notify`]），否则这条消息看不到。
+    pub(crate) fn flash(&mut self, message: impl Into<String>) {
+        if !self.status_bar_shown() {
+            self.notify(NoticeKind::Info, message);
+            return;
+        }
+        self.status.message = Some(message.into());
+        self.status.until = Some(Instant::now() + FLASH_DURATION);
+        self.request_redraw();
+    }
+
+    /// 清除 [`App::flash`] 显示的消息：状态已经变化，消息不再成立时调用。
+    ///
+    /// 隐藏状态栏时消息显示在提示条上，清除提示条。
+    pub(crate) fn clear_flash(&mut self) {
+        self.status.message = None;
+        self.status.until = None;
+        if !self.status_bar_shown() {
+            self.clear_notice();
+        }
+        self.request_redraw();
+    }
+
+    /// 在编辑区右上角显示一条 `kind` 种类的提示，显示时间为 [`NOTICE_DURATION`]，用于出错、
+    /// 冲突、未保存等需要用户注意的情况。
+    ///
+    /// 出错消息统一写成「无法……：原因」。
+    pub(in crate::app) fn notify(&mut self, kind: NoticeKind, message: impl Into<String>) {
+        // 换一条消息时重新播放入场动画；同一条消息再来一次只延长显示时间，不重新播放。
+        let message = message.into();
+        if self.notice.text.as_deref() != Some(message.as_str()) || self.notice.kind != kind {
+            self.notice.entering = self.clock(POPUP_IN);
+        }
+        self.notice.kind = kind;
+        self.notice.text = Some(message);
+        self.notice.until = Some(Instant::now() + NOTICE_DURATION);
+        self.notice.action = None;
+        self.notice.leaving = None;
+        self.request_redraw();
+    }
+
+    /// 返回 `shown`，即系统的提示框或面板是否弹出了。
+    ///
+    /// 没有弹出（窗口上已挂着别的提示框或面板）时提示用户先关闭它，
+    /// 否则这次操作既不执行也不说明原因。
+    pub(in crate::app) fn dialog_shown(&mut self, shown: bool) -> bool {
+        if !shown {
+            self.flash(t!("common-close-dialog-first"));
+        }
+        shown
+    }
+
+    /// 显示带一个按钮的提示（例如「查看输出」），显示时间为 [`NOTICE_ACTION_DURATION`]。
+    pub(in crate::app) fn notify_with(
+        &mut self,
+        kind: NoticeKind,
+        message: impl Into<String>,
+        action: NoticeAction,
+    ) {
+        self.notify(kind, message);
+        self.notice.until = Some(Instant::now() + NOTICE_ACTION_DURATION);
+        self.notice.action = Some(action);
+    }
+
+    /// 显示带一个按钮的提示并一直保留：用于正在进行、不知道何时结束的事情，结束时由调用方
+    /// 用 [`App::dismiss_notice`] 收起。被别的提示替换后不再恢复。
+    pub(in crate::app) fn notify_pinned(
+        &mut self,
+        message: impl Into<String>,
+        action: NoticeAction,
+    ) {
+        self.notify_with(NoticeKind::Info, message, action);
+        self.notice.until = None;
+    }
+
+    /// 收起当前的提示。
+    pub(in crate::app) fn dismiss_notice(&mut self) {
+        self.clear_notice();
+        self.request_redraw();
+    }
+
+    /// 收起提示条，返回它的文字和按钮操作；清除提示的各处都经过这里，避免漏掉某个字段。
+    pub(super) fn clear_notice(&mut self) -> (Option<String>, Option<NoticeAction>) {
+        self.notice.until = None;
+        self.hits.notice_button = None;
+        self.hits.notice_card = None;
+        self.notice.entering = None;
+        (self.notice.text.take(), self.notice.action.take())
+    }
+
+    /// 执行提示条上按钮对应的操作，并收起提示。
+    pub(in crate::app) fn run_notice_action(&mut self) {
+        let Some(action) = self.notice.action.take() else {
+            return;
+        };
+        self.clear_notice();
+        match action {
+            NoticeAction::ShowOutput(text) => {
+                self.editor
+                    .show_output(t!("workspace-format-output-title"), &text);
+                self.focus = Focus::Editor;
+                self.relayout();
+                self.ensure_caret_visible();
+            }
+            NoticeAction::Install { tools, dir } => self.show_install_guide(&tools, &dir),
+            NoticeAction::FormatSettings => {
+                self.open_settings();
+                self.settings_show_page(SettingsPage::Format);
+            }
+            NoticeAction::GitOutput => self.show_git_output(),
+            NoticeAction::Reconnect(folder) => {
+                self.reopen_remote(&folder);
+            }
+            NoticeAction::CancelConnect => self.cancel_remote(),
+            NoticeAction::CancelCopy => self.cancel_copies(),
+            NoticeAction::Reveal(path) => self.reveal_in_file_manager(&path),
+            NoticeAction::SaveAsAdmin(id) => self.save_as_admin(id),
+            NoticeAction::ReleaseNotes(previous) => {
+                self.open_release_notes(crate::release_notes::Scope::Since(previous));
+            }
+        }
+        self.request_redraw();
+    }
+}
+
+/// 右上角提示条的状态：文字、按钮、显示期限以及出现和消失的过渡。
+#[derive(Default)]
+pub struct Notice {
+    /// 编辑区右上角需要用户注意的提示。
+    pub(crate) text: Option<String>,
+    /// 提示的种类。
+    pub(crate) kind: NoticeKind,
+    pub(in crate::app) until: Option<Instant>,
+    /// 提示条上的按钮。
+    pub(crate) action: Option<NoticeAction>,
+    /// 提示条出现的动画；结束后为 `None`。
+    pub(crate) entering: Option<crate::app::animation::Clock>,
+    /// 到期后正在淡出的提示条：消息、按钮文字和消失的动画。
+    pub(crate) leaving: Option<NoticeGhost>,
+}

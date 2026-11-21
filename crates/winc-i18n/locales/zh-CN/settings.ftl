@@ -1,0 +1,304 @@
+## 设置卡片。
+
+settings-language = 语言
+settings-language-auto = 跟随系统
+settings-title = 设置
+settings-search-placeholder = 搜索设置
+settings-search-results = 搜索结果
+settings-search-empty = 未找到匹配的设置
+
+## 分类与分组。
+
+settings-page-appearance = 外观
+settings-page-editor = 编辑器
+settings-page-format = 格式化
+settings-page-git = Git
+settings-page-terminal = 终端
+settings-page-modules = 模块
+settings-page-keys = 快捷键
+settings-page-about = 关于
+settings-section-format-tools = 格式化工具
+settings-section-fix-tools = 修复工具
+
+## 设置项的名称。
+
+settings-theme = 颜色模式
+settings-light-theme = 浅色主题
+settings-dark-theme = 深色主题
+settings-ui-font = 界面字体
+settings-ui-size = 界面字号
+settings-font-weight = 全局字重
+settings-ui-zoom = 界面缩放
+settings-editor-font = 字体
+settings-editor-size = 字号
+settings-tab-width = 制表符长度
+settings-auto-save = 自动保存
+settings-auto-save-off = 关闭
+settings-auto-save-focus = 切换时
+settings-auto-save-delay = 停止输入 1 秒后
+settings-hot-exit = 热退出
+settings-confirm-close = 关闭前确认
+settings-restore-folder = 恢复上次的目录
+settings-sticky-scroll = 粘滞滚动
+settings-vim-mode = Vim 模式（实验性）
+settings-vim-clipboard = Vim 剪贴板
+settings-vim-clipboard-register = 仅 "+ 与 "*
+settings-vim-clipboard-yank = 复制时同步
+settings-vim-clipboard-always = 始终同步
+settings-vim-relative-number = Vim 相对行号
+settings-vim-yank-highlight = Vim 复制后高亮
+settings-render-whitespace = 空白字符
+settings-render-whitespace-none = 不显示
+settings-render-whitespace-selection = 选中时
+settings-render-whitespace-trailing = 行尾
+settings-render-whitespace-all = 全部
+settings-whole-lines = 完整显示超长行
+settings-word-wrap = 自动换行
+settings-outline = 大纲
+settings-compact-folders = 紧凑目录
+settings-preview-on-click = 预览标签页
+settings-minimap = 缩略图
+settings-line-numbers = 行号
+settings-diff-inline = 单栏差异视图
+settings-status-bar = 状态栏
+settings-background-image = 背景图片
+settings-background-opacity = 背景透明度
+settings-background-fit = 背景显示方式
+settings-background-fit-fill = 填充
+settings-background-fit-fit = 适应
+settings-background-fit-stretch = 拉伸
+settings-background-fit-tile = 平铺
+settings-background-none = 无
+settings-background-choose = 选择图片…
+settings-background-failed = 无法加载背景图片：{ $reason }
+settings-restore-window = 记住窗口大小和位置
+settings-animations = 动态效果
+settings-smooth-scrolling = 平滑滚动
+settings-remote-images = Markdown 网络图片
+settings-text-width = Markdown 正文宽度
+settings-markdown-line-numbers = Markdown 行号
+settings-markdown-shortcuts = Markdown 快捷键
+settings-markdown-focus = 专注模式
+settings-markdown-typewriter = 打字机模式
+settings-markdown-selection-toolbar = 选中文字工具栏
+settings-text-width-standard = 标准
+settings-text-width-wide = 较宽
+settings-text-width-full = 铺满
+settings-check-updates = 自动检查更新
+settings-system-title-bar = 使用系统标题栏
+settings-format-on-save = 保存时格式化
+settings-fix-on-save = 保存时修复问题
+settings-skip-on-save = 排除的语言
+settings-add-language = 添加语言…
+settings-terminal-module = 终端
+settings-remote-module = SSH 远程（实验性）
+settings-terminal-shell = 默认 Shell
+settings-terminal-position = 面板位置
+settings-terminal-tab-position = 标签位置
+settings-terminal-font = 字体
+settings-terminal-size = 字号
+settings-terminal-font-weight = 字重
+settings-terminal-copy-on-select = 选中时复制
+settings-terminal-confirm-close = 关闭前确认
+settings-system-proxy = 使用系统代理
+settings-git-inline-blame = 当前行追溯
+settings-git-auto-fetch = 定时获取
+settings-git-tree = 树形显示更改
+settings-git-remember-credentials = 记住密码
+settings-git-confirm-push = 推送前确认
+settings-git-staging-area = 暂存区
+settings-terminal-prompt = Winc 提示符
+settings-terminal-shell-integration = Shell 集成
+settings-terminal-application-priority = 终端应用优先
+settings-terminal-option-as-meta = Meta 键
+settings-key-search = 搜索快捷键
+
+## 设置项的说明。
+
+settings-auto-save-desc = 切换标签页、终端或应用时保存修改
+settings-hot-exit-desc = 退出时不逐个确认保存，下次启动时恢复未保存的修改
+settings-confirm-close-desc = 关闭窗口或退出前先确认
+settings-restore-folder-desc = 启动时重新打开上次的目录和标签页
+settings-sticky-scroll-desc = 滚动时将当前所在的函数、类和标题固定在顶部
+settings-vim-mode-desc = 在编辑区使用 Vim 的模式与按键
+settings-git-path = Git 程序
+settings-git-path-auto = 自动查找
+settings-git-path-desc = Git 可执行文件的路径，留空时在 PATH 中查找
+settings-git-open-worktree = 打开工作树
+settings-git-open-worktree-ask = 每次询问
+settings-git-open-worktree-new = 新窗口
+settings-git-open-worktree-current = 当前窗口
+settings-git-open-worktree-desc = 点击工作树时在哪个窗口打开
+settings-git-pull = 拉取方式
+settings-git-pull-config = 跟随 Git 配置
+settings-git-pull-merge = 合并
+settings-git-pull-rebase = 变基
+settings-git-pull-desc = 拉取和同步时合并还是变基上游的提交
+settings-drop-folder = 拖入目录
+settings-drop-folder-add = 添加到窗口
+settings-drop-folder-open = 不添加
+settings-drop-folder-desc = 不添加时，拖到编辑区打开，拖到文件树复制
+settings-vim-clipboard-desc = 复制、删除的文本何时写入系统剪贴板
+settings-vim-relative-number-desc = 当前行显示行号，其余各行显示与当前行的距离
+settings-vim-yank-highlight-desc = 复制后短暂高亮被复制的文本
+settings-render-whitespace-desc = 用圆点和箭头标出空格与制表符
+settings-whole-lines-desc = 超过 10000 个字符的行不再截断，超出部分不做语法高亮
+settings-word-wrap-desc = 长行按编辑区宽度折行显示，不修改文件
+settings-outline-desc = 在文件视图底部列出当前文件的符号和标题
+settings-compact-folders-desc = 在文件树和 Git 更改列表中将只含一个子目录的目录合并为一行
+settings-preview-on-click-desc = 单击打开的文件显示在预览标签页中，双击或编辑后转为普通标签页
+settings-minimap-desc = 在编辑区右侧显示代码概览，点击或拖动可滚动
+settings-line-numbers-desc = 在编辑区左侧显示行号，差异视图始终显示
+settings-diff-inline-desc = 新旧内容上下排列，关闭后左右并排
+settings-status-bar-desc = 在窗口底部显示光标位置、编码和 Git 分支等信息
+settings-background-image-desc = 在窗口底层显示图片，会增加内存占用和绘制耗时
+settings-background-opacity-desc = 数值越大，背景越明显
+settings-background-fit-desc = 图片与窗口比例不同时的铺放方式
+settings-restore-window-desc = 新窗口沿用上次关闭时的大小和位置
+settings-animations-desc = 面板、弹出层和列表变化时播放过渡动画
+settings-smooth-scrolling-desc = 鼠标滚轮滚动时平滑地滑到位
+settings-remote-images-desc = 显示文档中的徽章、截图等网络图片，关闭后显示替代文字
+settings-text-width-desc = 正文的最大宽度，预览区域更宽时正文居中
+settings-markdown-line-numbers-desc = 在预览左侧显示原文行号
+settings-markdown-shortcuts-desc = 源代码中也使用标题、列表、链接等写作快捷键
+settings-markdown-focus-desc = 编辑 Markdown 时淡化光标所在段落以外的文字
+settings-markdown-typewriter-desc = 编辑 Markdown 时光标所在的行停在编辑区中间
+settings-markdown-selection-toolbar-desc = 选中文字后显示粗体、斜体、链接等按钮
+settings-check-updates-desc = 启动时及之后每天检查一次，发现新版本时在状态栏中提示
+settings-system-title-bar-desc = 由桌面环境绘制标题栏和窗口边框
+settings-version = 版本
+settings-version-line = 版本 { $version }
+settings-website = 官网
+settings-license = 开源许可
+settings-link-open-failed = 无法打开链接：{ $error }
+settings-version-copied = 已复制版本号 { $version }
+settings-updates = 软件更新
+settings-check-now = 检查更新
+settings-release-notes = 更新日志
+settings-release-notes-view = 查看
+settings-updates-off = 此版本不支持应用内更新
+settings-updates-idle = 尚未检查更新
+settings-updates-checking = 正在检查更新…
+settings-updates-latest = Winc 已是最新版本
+settings-updates-found = 有可用的新版本：{ $version }
+settings-updates-found-download = 有可用的新版本：{ $version }，点击状态栏的「更新」打开下载页
+settings-updates-found-pacman = 有可用的新版本：{ $version }，运行 sudo pacman -Syu 更新
+settings-updates-failed = 无法检查更新，请稍后重试
+settings-updates-failed-because = 无法检查更新：{ $reason }
+settings-updates-downloading = 正在下载 { $version }：{ $percent }%
+settings-updates-ready = { $platform ->
+    [windows] { $version } 已下载，重新启动或退出 Winc 时安装
+   *[other] { $version } 已安装，重新启动 Winc 后生效
+}
+settings-updates-install-failed = 无法安装更新：{ $error }
+settings-format-on-save-desc = 保存前用下方的格式化工具整理文件
+settings-fix-on-save-desc = 保存前自动修复 lint 工具能修复的问题
+settings-skip-on-save-desc = 保存这些语言的文件时跳过修复和格式化
+settings-git-module-desc = 在 Git 仓库中显示文件状态和当前分支
+settings-system-proxy-desc = 没有设置代理环境变量时，检查更新、Git、网络图片等联网操作使用系统代理
+settings-git-inline-blame-desc = 在光标所在行末尾显示最后一次修改的作者、时间和提交说明
+settings-git-auto-fetch-desc = 每 3 分钟在后台从远程仓库获取更新
+settings-git-tree-desc = 更改列表按目录分层显示，关闭后平铺列出
+settings-git-remember-credentials-desc = 把通过验证的 HTTPS 密码保存在系统钥匙串中，关闭时清除已保存的密码
+settings-git-confirm-push-desc = 推送前列出目标仓库和待推送的提交
+settings-git-staging-area-desc = 用暂存区选择要提交的更改，关闭后用勾选框选择
+settings-terminal-module-desc-key = 编辑区下方的终端面板（{ $key }），打开时启动一个辅助进程
+settings-terminal-module-desc = 编辑区下方的终端面板，打开时启动一个辅助进程
+settings-remote-module-desc = 通过 SSH 打开远程主机上的目录，连接期间在该主机上运行服务进程
+settings-terminal-copy-on-select-desc = 选中文字后自动复制到剪贴板
+settings-terminal-confirm-close-desc = 关闭仍有程序运行的标签页前先确认
+settings-terminal-shell-desc = 新终端使用的 Shell，路径含空格时加双引号
+settings-terminal-prompt-desc = 替换默认提示符，显示目录、Git 分支和退出状态
+settings-terminal-shell-integration-desc = { $platform ->
+    [windows] 按命令分块显示 WSL 输出，自动加载 Python 环境
+   *[other] 按命令分块显示输出，自动加载 Python 环境
+}
+settings-terminal-application-priority-desc = 将快捷键交给终端应用，保留终端管理和复制、粘贴
+settings-terminal-option-as-meta-desc = 按所选的 ⌥ 时发送 Esc 前缀，不输入特殊字符
+
+## 设置项的值和提示。
+
+settings-theme-auto = 跟随系统
+settings-theme-light = 浅色
+settings-theme-dark = 深色
+settings-skip-on-save-none = 无
+settings-list-separator = 、
+settings-font-default = 系统默认
+settings-font-others = 其他字体
+settings-font-fallbacks = 后备字体
+settings-terminal-shell-default = 系统默认
+settings-terminal-shell-custom = 自定义命令…
+settings-terminal-shell-placeholder = 输入命令
+settings-terminal-position-bottom = 底部
+settings-terminal-position-right = 右侧
+settings-terminal-tab-position-top = 顶部
+settings-terminal-tab-position-right = 右侧
+settings-terminal-font-default = 跟随编辑器
+settings-terminal-option-as-meta-left = 左侧 ⌥
+settings-terminal-option-as-meta-right = 右侧 ⌥
+settings-terminal-option-as-meta-both = 两侧 ⌥
+settings-terminal-option-as-meta-none = 无
+settings-command-placeholder = 输入命令，{ "{file}" } 表示文件路径
+settings-command-edit-hint = 按 { common-key-enter } 保存，按 Esc 取消
+settings-font-not-installed = 未安装字体「{ $name }」
+settings-font-file-not-found = 未找到字体文件「{ $name }」
+settings-font-unsupported = 不支持字体「{ $name }」的字形格式
+settings-theme-used-when-dark = 系统使用深色外观时采用此主题
+settings-theme-used-when-light = 系统使用浅色外观时采用此主题
+
+## 主题名称。
+
+settings-theme-name-winc-day = Winc 晴昼
+settings-theme-name-winc-paper = Winc 宣纸
+settings-theme-name-sky = 晴空
+settings-theme-name-paper = 素纸
+settings-theme-name-vermilion = 朱砂
+settings-theme-name-mist = 晨雾
+settings-theme-name-veil-snow = 雪幕
+settings-theme-name-veil-linen = 纱幕
+settings-theme-name-winc-night = Winc 夜航
+settings-theme-name-winc-slate = Winc 远山
+settings-theme-name-ink = 墨蓝
+settings-theme-name-ember = 炭火
+settings-theme-name-midnight = 深夜
+settings-theme-name-dusk = 暮紫
+settings-theme-name-veil-night = 夜幕
+settings-theme-name-veil-umber = 檀幕
+
+## 快捷键页。
+
+settings-keys-recording = 按下快捷键查找对应的命令
+settings-keys-search = 搜索命令
+settings-keys-no-command = 无命令使用此快捷键
+settings-keys-no-match = 无匹配的命令
+settings-keys-keymap = 键位方案
+settings-keys-imported = 已导入 { $name } 的快捷键
+settings-keys-imported-skipped = 已导入 { $name } 的快捷键，{ $count } 项无法对应，已跳过
+settings-keys-keymap-description = 快捷键的默认方案，也可以从本机的其他编辑器导入
+settings-keys-keymap-changed = 已修改 { $count } 个命令的快捷键
+settings-keys-edit = 编辑
+settings-keys-reset = 恢复默认
+settings-keys-save = 保存
+settings-keys-cancel = 取消
+settings-keys-edit-hint = 新的快捷键会加在已有的键之后
+settings-keys-conflict = 保存后 { $key } 将从{ $names }改给此命令
+settings-keys-takes-typing = 不带修饰键的 { $key } 会取代编辑区和输入框中的文字输入
+settings-keys-modified = 已修改
+settings-keys-press = 按下快捷键
+settings-keys-import-from = 从 { $name } 导入…
+keymap-import-read-failed = 无法读取「{ $path }」：{ $error }
+keymap-import-invalid = 「{ $path }」的格式不对
+keymap-import-unsupported = 不支持导入「{ $name }」键位方案
+keymap-import-missing = 找不到「{ $name }」键位方案
+
+## 字号与配置文件。
+
+settings-font-size-limit = 编辑区字号已为 { $size }，无法继续调整
+settings-font-size = 编辑区字号 { $size }
+settings-terminal-font-size-limit = 终端字号已为 { $size }，无法继续调整
+settings-terminal-font-size = 终端字号 { $size }
+settings-zoom-limit = 界面缩放已为 { $zoom }%，无法继续调整
+settings-zoom = 界面缩放 { $zoom }%
+settings-config-backed-up = 原配置文件无法解析，已另存为 { $path } 后写入新设置
+settings-config-comments-backed-up = 写入设置时无法保留配置文件中的注释，原文件已另存为 { $path }
+settings-config-write-failed = 无法写入配置文件：{ $error }

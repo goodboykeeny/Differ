@@ -1,0 +1,422 @@
+//! 键盘和剪贴板：按键编码、输入法提交的文字、粘贴、复制、全选，滚动和滚动条。
+
+use super::*;
+use winit::keyboard::PhysicalKey;
+
+impl App {
+    /// 把字节写给正在看的标签里的程序：回到最新的输出；程序的输出到了下一帧马上能发，不等这一帧
+    /// 画完。
+    pub(in crate::app) fn terminal_input(&mut self, bytes: Vec<u8>) {
+        let t = &mut self.terminal;
+        let (Some(client), Some(tab)) = (&t.client, t.tabs.get_mut(t.active)) else {
+            return;
+        };
+        if tab.ended.is_some() || bytes.is_empty() {
+            return;
+        }
+        tab.scroll = 0;
+        tab.scroll_frac = 0.0;
+        tab.jump = None;
+        let mut rest = bytes.len() as u64;
+        for chunk in bytes.chunks(INPUT_CHUNK) {
+            rest -= chunk.len() as u64;
+            client.send(&ToHelper::Input {
+                tab: tab.id,
+                bytes: chunk.to_vec(),
+                rest,
+            });
+        }
+        if tab.credit_due {
+            tab.credit_due = false;
+            client.send(&ToHelper::Credit { tab: tab.id });
+        }
+        self.request_redraw();
+    }
+
+    /// 粘贴到终端（括号粘贴见 [`input::paste`]）。
+    ///
+    /// 程序没有开启括号粘贴、要粘贴的文字不止一行时先确认（[`input::paste_needs_confirm`]）：
+    /// 弹出确认框（macOS 上是系统的，其他平台画在窗口里）。
+    ///
+    /// 剪贴板中没有文字（如只有图片）时按空文字粘贴：程序开启了括号粘贴时收到一次空的括号
+    /// 粘贴，可据此自行读取剪贴板中的图片；未开启时不发送任何内容。远端主机上的标签例外：
+    /// 那里的程序读不到本机的剪贴板，复制的文件和图片先传过去，再粘贴那里的路径
+    /// （[`App::upload_paste`]）。
+    pub(in crate::app) fn terminal_paste(&mut self) {
+        let text = self.clipboard_text().unwrap_or_default();
+        let Some(tab) = self.terminal.tab().map(|t| (t.id, t.modes, t.cwd.clone())) else {
+            return;
+        };
+        let (id, modes, cwd) = tab;
+        if self.upload_paste(id, &cwd, text.is_empty()) {
+            return;
+        }
+        if input::paste_needs_confirm(&text, modes) {
+            let message = t!("terminal-paste-confirm", count = text.lines().count());
+            if self.window.handle.is_some() {
+                // 没有弹出时不粘贴，并说明原因。
+                let detail = t!("terminal-paste-confirm-detail");
+                self.show_confirm(&message, detail, t!("cmd-paste"), move |ok| {
+                    ok.then(|| UserEvent::TerminalPaste(id, text.clone()))
+                });
+                return;
+            }
+        }
+        self.confirmed_terminal_paste(id, text);
+    }
+
+    /// 把 `text` 粘贴到标签 `id`；该标签已不是当前标签（确认期间切换或关闭了）时不粘贴。
+    pub(crate) fn confirmed_terminal_paste(&mut self, id: u16, text: String) {
+        let Some(modes) = self.terminal.tab().filter(|t| t.id == id).map(|t| t.modes) else {
+            return;
+        };
+        let mut bytes = Vec::new();
+        input::paste(&text, modes, &mut bytes);
+        self.terminal_input(bytes);
+    }
+
+    /// 复制选区；`clear` 为真时复制后清除选区。
+    ///
+    /// 没有选区时什么也不做；选区里有还没取回的历史行时先要，回来再复制。
+    pub(in crate::app) fn terminal_copy(&mut self, clear: bool) {
+        let t = &mut self.terminal;
+        let Some(tab) = t.tabs.get_mut(t.active) else {
+            return;
+        };
+        match tab.selected_text() {
+            Ok(Some(text)) => {
+                if clear {
+                    tab.selection = None;
+                }
+                self.set_clipboard(text, false);
+                self.flash(winc_i18n::t!("terminal-selection-copied"));
+            }
+            Ok(None) => {}
+            Err(range) => {
+                let id = tab.id;
+                tab.clear_after_copy |= clear;
+                if !t.waiting(id, Request::Copy) {
+                    t.request(id, range, Request::Copy);
+                }
+            }
+        }
+        self.request_redraw();
+    }
+
+    /// 选中全部（⌘A）：回滚缓冲加屏幕。
+    pub(in crate::app) fn terminal_select_all(&mut self) {
+        if let Some(tab) = self.terminal.tab_mut() {
+            tab.select_all();
+            self.request_redraw();
+        }
+    }
+
+    /// 输入法提交的文字。
+    pub(in crate::app) fn terminal_commit(&mut self, text: &str) {
+        self.clear_terminal_selection();
+        self.terminal_input(text.as_bytes().to_vec());
+    }
+
+    /// 清除当前标签的选区。
+    fn clear_terminal_selection(&mut self) {
+        if let Some(tab) = self.terminal.tab_mut() {
+            tab.selection = None;
+        }
+    }
+
+    /// 滚动条的（轨道，往下滚过的高度，内容高度），绘制、点击和拖动共用。
+    ///
+    /// 轨道是内容区域加右边的留白；内容按显示行算，最新的一屏在最下面。
+    pub(crate) fn terminal_scrollbar(&self) -> Option<(Rect, f32, f32)> {
+        let tab = self.terminal.tab()?;
+        let lh = self.fonts.terminal_line_height;
+        let card = self.terminal_content_card();
+        let view = self.terminal_view();
+        let track = Rect::new(view.x, view.y, card.right() - view.x, view.h);
+        let (position, limit) = tab.scroll_position();
+        let max = limit as f32 * lh;
+        Some((track, max - position as f32 * lh, max + track.h))
+    }
+
+    /// 拖着滚动条的滑块：滑块上边跟着鼠标（`grab` 是按下点到滑块上边的距离）。
+    pub(in crate::app) fn drag_terminal_scrollbar(&mut self, y: f32, grab: f32) {
+        let Some((track, _, content)) = self.terminal_scrollbar() else {
+            return;
+        };
+        let Some(thumb) = crate::layout::scrollbar_thumb(track, 0.0, content) else {
+            return;
+        };
+        let max = content - track.h;
+        let top = crate::layout::scroll_for_thumb(track.y, track.h, thumb.h, y, grab, max);
+        let lh = self.fonts.terminal_line_height;
+        if let Some(tab) = self.terminal.tab_mut() {
+            tab.set_scroll_position(f64::from((max - top) / lh));
+        }
+        self.fetch_terminal_history();
+        self.request_redraw();
+    }
+
+    /// ⌘K：清掉屏幕和回滚缓冲，提示符留在第一行。
+    pub(in crate::app) fn clear_terminal(&mut self) {
+        if let (Some(client), Some(tab)) = (&self.terminal.client, self.terminal.tab()) {
+            client.send(&ToHelper::Clear { tab: tab.id });
+        }
+    }
+
+    /// 往上（`lines` 为正）或往下翻回滚缓冲。
+    pub(in crate::app) fn scroll_terminal(&mut self, lines: isize) {
+        let Some(tab) = self.terminal.tab_mut() else {
+            return;
+        };
+        tab.scroll = tab.scroll.saturating_add_signed(lines);
+        tab.scroll_frac = 0.0;
+        tab.clamp_scroll();
+        self.fetch_terminal_history();
+        self.request_redraw();
+    }
+
+    /// 焦点在终端时的按键（快捷键已经先处理过）。
+    pub(in crate::app) fn on_key_terminal(&mut self, event: &KeyEvent) {
+        if event.state != ElementState::Pressed {
+            return;
+        }
+        if !matches!(
+            event.logical_key,
+            Key::Named(
+                NamedKey::Shift
+                    | NamedKey::Control
+                    | NamedKey::Alt
+                    | NamedKey::Super
+                    | NamedKey::Meta
+            )
+        ) && self.terminal_error_key(event.logical_key == Key::Named(NamedKey::Enter))
+        {
+            return;
+        }
+        let Some(tab) = self.terminal.tab() else {
+            return;
+        };
+        // shell 退出、伪终端断开（或者辅助进程退出）以后按 ↩ 重新开始。
+        if tab.ended.is_some() || self.terminal.crashed {
+            if event.logical_key == Key::Named(NamedKey::Enter) {
+                self.request_terminal_restart();
+            }
+            return;
+        }
+        // Shift+PageUp/PageDown 翻回滚缓冲；备用屏上没有回滚缓冲，交给程序。
+        let page = tab.grid_rows().saturating_sub(1).max(1) as isize;
+        if self.pointer.modifiers == winit::keyboard::ModifiersState::SHIFT
+            && self.terminal_scroll_keys()
+        {
+            match event.logical_key {
+                Key::Named(NamedKey::PageUp) => return self.scroll_terminal(page),
+                Key::Named(NamedKey::PageDown) => return self.scroll_terminal(-page),
+                _ => {}
+            }
+        }
+        let (modes, keyboard) = (tab.modes, tab.keyboard);
+        let ctrl_v = self.pointer.modifiers == winit::keyboard::ModifiersState::CONTROL
+            && matches!(event.key_without_modifiers(), Key::Character(c)
+                if c.chars().next().is_some_and(|c| latin(c, event.physical_key) == 'v'));
+        if ctrl_v && self.ctrl_v_uploads() {
+            return;
+        }
+        if let Some(bytes) = self.encode_terminal_key(event, modes, keyboard) {
+            // 输入文字时清除选区，否则 ⌘C 会复制旧内容；方向键和快捷键保留选区。
+            let mods = self.terminal_mods();
+            let typed = event.text.as_deref().is_some_and(|text| {
+                !text.chars().any(char::is_control)
+                    && !mods.ctrl
+                    && !mods.alt
+                    && !self.pointer.modifiers.super_key()
+            });
+            if typed {
+                self.clear_terminal_selection();
+            }
+            self.terminal_input(bytes);
+        }
+    }
+
+    /// 在正在看的标签里按了 ⌃V：标签在远端主机上、本机剪贴板里有复制的文件或只有图片时，传到
+    /// 那台主机再粘贴路径（见 [`App::upload_paste`]），返回 `true`，不再把 ⌃V 发给程序。
+    ///
+    /// 用 ⌃V 粘贴图片的程序读的是远端的剪贴板，按了也读不到本机的截图；这里让这个习惯的键照样
+    /// 可用。只在有程序运行（[`TermTab::busy`]）、在主屏上、开启了括号粘贴时这样做：shell 的
+    /// 提示符下 ⌃V 是逐字输入下一个键，备用屏上的 vim 是列选择，这些时候照常发给程序。
+    pub(in crate::app) fn ctrl_v_uploads(&mut self) -> bool {
+        let Some(tab) = self.terminal.tab() else {
+            return false;
+        };
+        let (id, cwd, modes) = (tab.id, tab.cwd.clone(), tab.modes);
+        let ready = tab.busy().is_some()
+            && modes.has(Modes::BRACKETED_PASTE)
+            && !modes.has(Modes::ALT_SCREEN)
+            && winc_backend::is_remote(&bytes_path(&cwd));
+        if !ready {
+            return false;
+        }
+        let empty = self.clipboard_text().is_none_or(|text| text.is_empty());
+        self.upload_paste(id, &cwd, empty)
+    }
+
+    /// 返回编码终端按键和鼠标上报时使用的修饰键。
+    ///
+    /// Alt 是否视为 Meta 按平台区分：
+    /// - macOS：⌥ 参与输入字符（如 ⌥e 输入重音符），视为 Meta 的一侧由
+    ///   `terminal.optionAsMeta` 指定。
+    /// - 其他平台：Alt 不参与输入字符，一律视为 Meta；winit 在这些平台上不报告左右 Alt 的状态。
+    ///   `AltGr` 不计入 Alt，按其输入的字符发送。
+    pub(super) fn terminal_mods(&self) -> Mods {
+        let m = self.pointer.modifiers;
+        let meta = m.alt_key()
+            && (!cfg!(target_os = "macos")
+                || match self.config.option_as_meta.unwrap_or(OptionAsMeta::Left) {
+                    OptionAsMeta::Left => self.pointer.option_side.0,
+                    OptionAsMeta::Right => self.pointer.option_side.1,
+                    OptionAsMeta::Both => true,
+                    OptionAsMeta::None => false,
+                });
+        Mods {
+            shift: m.shift_key(),
+            alt: meta,
+            ctrl: m.control_key(),
+        }
+    }
+
+    /// 把一次按键编码成写给终端的字节；这个键在终端里没有意义时返回 `None`。
+    fn encode_terminal_key(&self, event: &KeyEvent, modes: Modes, keyboard: u8) -> Option<Vec<u8>> {
+        let m = self.pointer.modifiers;
+        let option = m.alt_key();
+        let mods = self.terminal_mods();
+
+        // 文本框的按键约定只用于主屏上的行编辑：⌘← ⌘→ 到行首行尾，⌘⌫ 删到行首，⌥← ⌥→ 按词
+        // 移动。备用屏上的程序和启用了键盘协议的程序自行解释这些键，按修饰键原样编码。
+        let editing = !modes.has(Modes::ALT_SCREEN) && keyboard == 0;
+        // 其余带 ⌘ 的组合不是快捷键就不发。
+        if cfg!(target_os = "macos") && m.super_key() {
+            return match &event.logical_key {
+                Key::Named(NamedKey::ArrowLeft) if editing => Some(vec![0x01]),
+                Key::Named(NamedKey::ArrowRight) if editing => Some(vec![0x05]),
+                Key::Named(NamedKey::Backspace) if editing => Some(vec![0x15]),
+                _ => None,
+            };
+        }
+        if option && !mods.ctrl && editing {
+            match &event.logical_key {
+                Key::Named(NamedKey::ArrowLeft) => return Some(b"\x1bb".to_vec()),
+                Key::Named(NamedKey::ArrowRight) => return Some(b"\x1bf".to_vec()),
+                Key::Named(NamedKey::Backspace) => return Some(b"\x1b\x7f".to_vec()),
+                _ => {}
+            }
+        }
+
+        let key = match &event.logical_key {
+            Key::Named(named) => match named {
+                NamedKey::Enter => TermKey::Enter,
+                NamedKey::Tab => TermKey::Tab,
+                NamedKey::Backspace => TermKey::Backspace,
+                NamedKey::Escape => TermKey::Escape,
+                NamedKey::ArrowUp => TermKey::Up,
+                NamedKey::ArrowDown => TermKey::Down,
+                NamedKey::ArrowLeft => TermKey::Left,
+                NamedKey::ArrowRight => TermKey::Right,
+                NamedKey::Home => TermKey::Home,
+                NamedKey::End => TermKey::End,
+                NamedKey::PageUp => TermKey::PageUp,
+                NamedKey::PageDown => TermKey::PageDown,
+                NamedKey::Insert => TermKey::Insert,
+                NamedKey::Delete => TermKey::Delete,
+                NamedKey::Space if mods.ctrl || mods.alt => TermKey::Char(' '),
+                NamedKey::Space => TermKey::Text(" "),
+                NamedKey::F1 => TermKey::F(1),
+                NamedKey::F2 => TermKey::F(2),
+                NamedKey::F3 => TermKey::F(3),
+                NamedKey::F4 => TermKey::F(4),
+                NamedKey::F5 => TermKey::F(5),
+                NamedKey::F6 => TermKey::F(6),
+                NamedKey::F7 => TermKey::F(7),
+                NamedKey::F8 => TermKey::F(8),
+                NamedKey::F9 => TermKey::F(9),
+                NamedKey::F10 => TermKey::F(10),
+                NamedKey::F11 => TermKey::F(11),
+                NamedKey::F12 => TermKey::F(12),
+                _ => return None,
+            },
+            _ if mods.ctrl || mods.alt => {
+                // ⌃、Meta 要的是键上的字符：⌥ 已经把它变成了别的字（⌥b 是 ∫），用不含修饰键的
+                // 那个，再补上 ⇧。
+                let Key::Character(base) = event.key_without_modifiers() else {
+                    return None;
+                };
+                let c = latin(base.chars().next()?, event.physical_key);
+                // 键盘协议要求发送未加 ⇧ 的键码，⇧ 记在修饰位里。
+                let c = if mods.shift && keyboard == 0 {
+                    shifted(c)
+                } else {
+                    c
+                };
+                TermKey::Char(c)
+            }
+            _ => {
+                let text = event.text.as_deref()?;
+                if text.chars().any(char::is_control) {
+                    return None;
+                }
+                let mut bytes = Vec::new();
+                input::encode(TermKey::Text(text), mods, modes, keyboard, &mut bytes);
+                return Some(bytes);
+            }
+        };
+        let mut bytes = Vec::new();
+        input::encode(key, mods, modes, keyboard, &mut bytes).then_some(bytes)
+    }
+}
+
+/// 返回 ⌃、Meta 组合按键时使用的字符：按物理键位换成美式键盘上的字符。
+///
+/// 俄文、希腊文等键盘上键面印的不是拉丁字母（⌃C 所在的键印的是「С」），只用键面的字符
+/// 发不出 ⌃C。这里按 `key` 给出的键位取字：`KeyC` 换成 `c`，字母、数字与标点同理；键面
+/// 已经是 ASCII 时原样返回。
+fn latin(c: char, key: PhysicalKey) -> char {
+    if c.is_ascii() {
+        return c;
+    }
+    crate::keymap::us_char(key).unwrap_or(c)
+}
+
+/// ⇧ 加上键上的字符（美式键盘的排法）：Meta 组合要发 `ESC !` 这样的字符时用。
+fn shifted(c: char) -> char {
+    const PAIRS: [(char, char); 21] = [
+        ('1', '!'),
+        ('2', '@'),
+        ('3', '#'),
+        ('4', '$'),
+        ('5', '%'),
+        ('6', '^'),
+        ('7', '&'),
+        ('8', '*'),
+        ('9', '('),
+        ('0', ')'),
+        ('-', '_'),
+        ('=', '+'),
+        ('[', '{'),
+        (']', '}'),
+        ('\\', '|'),
+        (';', ':'),
+        ('\'', '"'),
+        (',', '<'),
+        ('.', '>'),
+        ('/', '?'),
+        ('`', '~'),
+    ];
+    if c.is_ascii_lowercase() {
+        return c.to_ascii_uppercase();
+    }
+    PAIRS
+        .iter()
+        .find(|&&(from, _)| from == c)
+        .map_or(c, |&(_, to)| to)
+}
+
+#[cfg(test)]
+mod tests;

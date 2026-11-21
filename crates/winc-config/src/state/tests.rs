@@ -1,0 +1,482 @@
+//! [`State`] 的测试：多进程读改写、容错读入、徽章颜色、现场与工具选择的记录。
+
+use super::*;
+
+#[test]
+fn several_windows_keep_each_others_changes() {
+    let dir = std::env::temp_dir().join(format!("winc-state-merge-{}", std::process::id()));
+    let path = dir.join("state.json");
+    let (x, y) = (Path::new("/p/x"), Path::new("/p/y"));
+
+    // 模拟两个进程先后读改写同一个文件：第一个记下 X 的现场与书签，第二个打开 Y。
+    let (_, ok) = State::update(&path, |s| s.remember(x));
+    ok.unwrap();
+    let (_, ok) = State::update(&path, |s| {
+        s.set_session(Session {
+            folder: x.to_path_buf(),
+            bookmarks: vec![(x.join("a.rs"), vec![3])],
+            ..Session::default()
+        });
+    });
+    ok.unwrap();
+    let (_, ok) = State::update(&path, |s| {
+        s.remember(y);
+        s.last = Some(y.to_path_buf());
+    });
+    ok.unwrap();
+
+    // 每次写入前重新读取，因此两次修改都保留在文件中。
+    let state = State::load_from(&path);
+    assert_eq!(state.recent, [y, x]);
+    assert_eq!(state.session_for(x).unwrap().bookmarks.len(), 1);
+    assert_eq!(state.last.as_deref(), Some(y));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+fn sample() -> State {
+    let mut state = State {
+        recent: vec![PathBuf::from("/a/项目"), PathBuf::from("/b")],
+        recent_files: vec![
+            PathBuf::from("/a/项目/main.rs"),
+            PathBuf::from("/c/笔记.md"),
+        ],
+        sessions: vec![
+            Session {
+                folder: PathBuf::from("/a/项目"),
+                tabs: vec![
+                    Tab::File(PathBuf::from("/a/项目/main.rs")),
+                    Tab::Untitled("untitled-1f".into()),
+                    Tab::File(PathBuf::from("/a/项目/lib.rs")),
+                ],
+                active: Some(2),
+                bookmarks: vec![(PathBuf::from("/a/项目/main.rs"), vec![0, 41])],
+                outline: vec![(
+                    PathBuf::from("/a/项目/README.md"),
+                    vec!["安装".into(), "用法\u{1f}配置".into()],
+                )],
+                folds: vec![(PathBuf::from("/a/项目/README.md"), vec![(0, 12), (3, 7)])],
+                pdf_places: vec![(PathBuf::from("/a/项目/手册.pdf"), (12, 0.375))],
+                book_places: vec![(PathBuf::from("/a/项目/小说.epub"), (340, 0.5))],
+                terminal: Some(TerminalSession {
+                    tabs: vec![PathBuf::from("/a/项目"), PathBuf::from("/a/项目/src")],
+                    names: vec![String::new(), "服务".into()],
+                    shells: vec![String::new(), "/bin/bash".into()],
+                    active: 1,
+                    open: true,
+                    height: 320.0,
+                    width: 0.0,
+                    maximized: true,
+                }),
+                run: Some("后端".into()),
+                folders: vec![PathBuf::from("/tmp/extra"), PathBuf::from("/tmp/另一个")],
+                name: Some("后端组".into()),
+                readonly: vec![PathBuf::from("/a/项目/main.rs")],
+                readonly_all: true,
+                sidebar_hidden: true,
+                window: Some(WindowFrame {
+                    position: Some((0.0, 25.0)),
+                    width: 1440.0,
+                    height: 875.0,
+                    scale: 2.0,
+                    maximized: true,
+                }),
+                panes: Some(SessionPanes {
+                    tree: PaneNode::Split {
+                        column: false,
+                        share: 0.25,
+                        first: Box::new(PaneNode::Pane(0)),
+                        second: Box::new(PaneNode::Pane(1)),
+                    },
+                    panes: vec![
+                        SessionPane {
+                            tabs: vec![0],
+                            active: Some(0),
+                        },
+                        SessionPane {
+                            tabs: vec![1, 0],
+                            active: None,
+                        },
+                    ],
+                    focused: 1,
+                }),
+            },
+            Session {
+                folder: PathBuf::from("/b"),
+                tabs: vec![Tab::File(PathBuf::from("/b/x"))],
+                active: None,
+                bookmarks: Vec::new(),
+                outline: Vec::new(),
+                folds: Vec::new(),
+                pdf_places: Vec::new(),
+                book_places: Vec::new(),
+                terminal: None,
+                run: None,
+                folders: Vec::new(),
+                name: None,
+                readonly: Vec::new(),
+                readonly_all: false,
+                sidebar_hidden: false,
+                window: None,
+                panes: None,
+            },
+        ],
+        last: Some(PathBuf::from("/a/项目")),
+        others: vec![PathBuf::from("/b")],
+        commit_tree: true,
+        commit_sort: "status".into(),
+        commit_all_repositories: Some(true),
+        log_branches: Some(false),
+        log_files_tree: Some(false),
+        diff_files_tree: Some(true),
+        log_columns: Some(vec!["date".into(), "hash".into()]),
+        commit_messages: vec!["修复登录\n\n说明".into(), "first".into()],
+        commit_check_todo: true,
+        commit_reformat: true,
+        sign_off_repos: vec![PathBuf::from("/a/项目")],
+        pdf_thumbnails_hidden: true,
+        markdown_toc_pinned: true,
+        vim_marks: vec![('A', PathBuf::from("/a/项目/x.rs"), 12, 3)],
+        vim_commands: vec!["%s/a/b/g".into(), "w".into()],
+        vim_searches: vec!["\\<词\\>".into()],
+        stay_outside_applications: true,
+        panel_width: Some(360.0),
+        preview_modes: [
+            ("markdown".into(), "preview".into()),
+            ("svg".into(), "split".into()),
+        ]
+        .into(),
+        version: Some("0.1.626".into()),
+        setup_pending: true,
+        window: Some(WindowFrame {
+            position: Some((-1280.0, 40.0)),
+            width: 900.5,
+            height: 600.0,
+            scale: 2.0,
+            maximized: true,
+        }),
+        badges: Vec::new(),
+        tool_choices: vec![(PathBuf::from("/a/项目"), true)],
+        trusted_repos: vec![(PathBuf::from("/a/项目"), u64::MAX - 1)],
+        remote_keys: Vec::new(),
+    };
+    state.set_remote_key("me@devbox:2200", "~/.ssh/工作 key");
+    state.set_remote_key("build", "/keys/build");
+    state.assign_badges();
+    state
+}
+
+#[test]
+fn a_key_file_is_kept_per_remote_host_until_cleared() {
+    let mut state = sample();
+    assert_eq!(state.remote_key("build"), Some("/keys/build"));
+    assert_eq!(state.remote_key("me@devbox"), None);
+    state.set_remote_key("build", "/keys/other");
+    assert_eq!(state.remote_key("build"), Some("/keys/other"));
+    state.set_remote_key("build", "");
+    assert_eq!(state.remote_key("build"), None);
+    assert_eq!(state.remote_key("me@devbox:2200"), Some("~/.ssh/工作 key"));
+}
+
+#[test]
+fn round_trips_through_json() {
+    let state = sample();
+    assert_eq!(State::parse(&state.to_json()), state);
+    assert_eq!(State::parse(&State::default().to_json()), State::default());
+}
+
+#[test]
+fn preview_modes_are_read_per_kind() {
+    let modes = |text: &str| {
+        State::parse(text)
+            .preview_modes
+            .into_iter()
+            .collect::<Vec<_>>()
+    };
+    let pair = |kind: &str, mode: &str| (kind.to_owned(), mode.to_owned());
+    // 字符串用于全部种类。
+    assert_eq!(
+        modes(r#"{"previewMode": "split"}"#),
+        [
+            pair("markdown", "split"),
+            pair("svg", "split"),
+            pair("table", "split")
+        ]
+    );
+    // 未知的种类和方式跳过。
+    let text = r#"{"previewMode": {"markdown": "preview", "svg": "x", "pdf": "split"}}"#;
+    assert_eq!(modes(text), [pair("markdown", "preview")]);
+    assert!(modes(r#"{"previewMode": "source"}"#).is_empty());
+}
+
+#[test]
+fn malformed_pdf_places_are_skipped() {
+    // 页号为负数或小数、比例不是数字、缺少一项的记录跳过，其余仍然读取。
+    let text = r#"{"session": {"folder": "/a", "files": [], "pdfPlaces":
+        {"/a/a.pdf": [2, 0.5], "/a/b.pdf": [-1, 0], "/a/c.pdf": [1.5, 0], "/a/d.pdf": [3],
+         "/a/e.pdf": [0, "x"], "/a/f.pdf": 4, "": [1, 0]}}}"#;
+    assert_eq!(
+        State::parse(text).last_session().unwrap().pdf_places,
+        [(PathBuf::from("/a/a.pdf"), (2, 0.5))]
+    );
+}
+
+#[test]
+fn bad_input_means_no_history() {
+    for text in [
+        "",
+        "{",
+        "[1, 2]",
+        "{\"recent\": 3}",
+        "{\"session\": {\"files\": []}}",
+        "{\"sessions\": [3, {\"files\": []}]}",
+    ] {
+        let state = State::parse(text);
+        assert!(
+            state.recent.is_empty() && state.sessions.is_empty(),
+            "{text}"
+        );
+        assert!(state.last_session().is_none(), "{text}");
+    }
+
+    // 无法解析的标签被跳过，其余仍然读取。
+    let text = r#"{"session": {"folder": "/a", "files": [3, {"untitled": ""}, {"x": 1}, "", {"untitled": "u"}, "/a/x"]}}"#;
+    assert_eq!(
+        State::parse(text).last_session().unwrap().tabs,
+        [Tab::Untitled("u".into()), Tab::File(PathBuf::from("/a/x"))]
+    );
+
+    // 活动标签的下标越界、是小数或负数时忽略，其余仍然读取。
+    for active in ["5", "0.5", "-1"] {
+        let text = format!(
+            "{{\"session\": {{\"folder\": \"/a\", \"files\": [\"/a/x\"], \"active\": {active}}}}}"
+        );
+        let state = State::parse(&text);
+        let session = state.last_session().unwrap();
+        assert_eq!(session.tabs.len(), 1);
+        assert_eq!(session.active, None, "{active}");
+    }
+}
+
+#[test]
+fn recent_list_moves_to_front_and_is_capped() {
+    let mut state = State::default();
+    for i in 0..MAX_RECENT + 5 {
+        state.remember(Path::new(&format!("/p{i}")));
+    }
+    assert_eq!(state.recent.len(), MAX_RECENT);
+    assert_eq!(
+        state.recent[0],
+        PathBuf::from(format!("/p{}", MAX_RECENT + 4))
+    );
+
+    state.remember(Path::new("/p10"));
+    assert_eq!(state.recent[0], PathBuf::from("/p10"));
+    assert_eq!(
+        state
+            .recent
+            .iter()
+            .filter(|p| **p == Path::new("/p10"))
+            .count(),
+        1
+    );
+
+    let mut state = sample();
+    state.forget(Path::new("/a/项目"));
+    assert_eq!(state.recent, vec![PathBuf::from("/b")]);
+    assert!(
+        state.last_session().is_none() && state.session_for(Path::new("/a/项目")).is_none(),
+        "拿掉的目录正好是上次的现场，现场也作废"
+    );
+    assert!(state.session_for(Path::new("/b")).is_some());
+}
+
+#[test]
+fn recent_files_move_to_front_and_are_capped() {
+    let mut state = State::default();
+    for i in 0..MAX_RECENT_FILES + 5 {
+        state.remember_file(Path::new(&format!("/f{i}.rs")));
+    }
+    state.remember_file(Path::new("/f10.rs"));
+    assert_eq!(state.recent_files.len(), MAX_RECENT_FILES);
+    assert_eq!(state.recent_files[0], Path::new("/f10.rs"));
+    assert_eq!(
+        state
+            .recent_files
+            .iter()
+            .filter(|p| p.ends_with("f10.rs"))
+            .count(),
+        1
+    );
+    state.forget_file(Path::new("/f10.rs"));
+    assert!(!state.recent_files.iter().any(|p| p.ends_with("f10.rs")));
+}
+
+#[test]
+fn recent_folders_keep_their_own_badge_colors() {
+    let mut state = State::default();
+    for i in 0..BADGE_COLORS {
+        state.remember(Path::new(&format!("/projects/p{i}")));
+    }
+
+    // 最近列表中各目录的颜色互不相同。
+    let colors = |state: &State| -> Vec<usize> {
+        state.recent.iter().map(|p| state.badge_color(p)).collect()
+    };
+    let mut all = colors(&state);
+    all.sort_unstable();
+    all.dedup();
+    assert_eq!(all.len(), BADGE_COLORS);
+
+    // 重新打开已有目录：移到最前面，该目录与其他目录的颜色都不变。
+    let before = state.badge_color(Path::new("/projects/p3"));
+    let others: Vec<_> = state
+        .recent
+        .iter()
+        .map(|p| (p.clone(), state.badge_color(p)))
+        .collect();
+    state.remember(Path::new("/projects/p3"));
+    assert_eq!(state.badge_color(Path::new("/projects/p3")), before);
+    for (folder, color) in others {
+        assert_eq!(state.badge_color(&folder), color);
+    }
+
+    // 新目录把第十个目录挤出前十并获得它让出的颜色；该目录仍在列表中，按名字取色。序列化
+    // 后再读回，颜色保持不变。
+    let oldest = state.recent.last().cloned().unwrap();
+    let freed = state.badge_color(&oldest);
+    state.remember(Path::new("/projects/new"));
+    assert_eq!(state.badge_color(Path::new("/projects/new")), freed);
+    assert_eq!(state.recent.get(BADGE_COLORS), Some(&oldest));
+    assert_eq!(state.badge_color(&oldest), preferred_color(&oldest));
+    assert_eq!(colors(&State::parse(&state.to_json())), colors(&state));
+
+    // 旧文件缺少颜色、手工改成重复或越界时，读入后颜色被理顺为互不相同。
+    let old =
+        r#"{"recent": ["/x/a", "/x/b", "/x/c"], "badges": {"/x/a": 4, "/x/b": 4, "/x/c": 99}}"#;
+    let state = State::parse(old);
+    assert_eq!(state.badge_color(Path::new("/x/a")), 4);
+    let mut parsed = colors(&state);
+    parsed.sort_unstable();
+    parsed.dedup();
+    assert_eq!(parsed.len(), 3);
+}
+
+#[test]
+fn sessions_are_kept_per_folder() {
+    let mut state = sample();
+    assert_eq!(state.last_session().unwrap().tabs.len(), 3);
+
+    // 记录 `/b` 的现场：移到最前面，同目录的旧记录被替换，不重复。
+    state.set_session(Session {
+        folder: PathBuf::from("/b"),
+        tabs: vec![],
+        active: None,
+        bookmarks: Vec::new(),
+        outline: Vec::new(),
+        folds: Vec::new(),
+        pdf_places: Vec::new(),
+        book_places: Vec::new(),
+        terminal: None,
+        run: None,
+        folders: Vec::new(),
+        name: None,
+        readonly: Vec::new(),
+        readonly_all: false,
+        sidebar_hidden: false,
+        window: None,
+        panes: None,
+    });
+    assert_eq!(state.sessions.len(), 2);
+    assert_eq!(state.sessions[0].folder, PathBuf::from("/b"));
+    assert!(state.session_for(Path::new("/b")).unwrap().tabs.is_empty());
+
+    for i in 0..20 {
+        state.set_session(Session {
+            folder: PathBuf::from(format!("/p{i}")),
+            ..Session::default()
+        });
+    }
+    assert_eq!(state.sessions.len(), MAX_SESSIONS);
+
+    // 旧格式只记单个 `session`，读入后作为上次退出时的现场。
+    let old = "{\"recent\": [\"/a\"], \"session\": {\"folder\": \"/a\", \"files\": [\"/a/x\"]}}";
+    let state = State::parse(old);
+    assert_eq!(state.last.as_deref(), Some(Path::new("/a")));
+    assert_eq!(
+        state.last_session().unwrap().tabs,
+        [Tab::File(PathBuf::from("/a/x"))]
+    );
+}
+
+#[test]
+fn tool_choices_are_remembered_per_folder() {
+    let mut state = State::default();
+    assert_eq!(state.tool_choice(Path::new("/a")), None);
+    state.set_tool_choice(Path::new("/a"), true);
+    state.set_tool_choice(Path::new("/b"), false);
+    state.set_tool_choice(Path::new("/a"), false);
+    assert_eq!(state.tool_choice(Path::new("/a")), Some(false));
+    assert_eq!(state.tool_choice(Path::new("/b")), Some(false));
+    assert_eq!(State::parse(&state.to_json()), state);
+
+    for i in 0..MAX_TOOL_CHOICES + 5 {
+        state.set_tool_choice(Path::new(&format!("/p{i}")), true);
+    }
+    assert_eq!(state.tool_choices.len(), MAX_TOOL_CHOICES);
+    assert_eq!(state.tool_choice(Path::new("/a")), None, "最早的挤掉了");
+}
+
+#[test]
+fn save_to_writes_a_temp_file_then_renames() {
+    let dir = std::env::temp_dir().join(format!("winc-state-test-{}", std::process::id()));
+    let path = dir.join("nested").join("state.json");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    sample().save_to(&path).unwrap();
+    assert_eq!(State::load_from(&path), sample());
+    assert!(!path.with_extension("json.tmp").exists());
+    assert_eq!(
+        State::load_from(&dir.join("missing.json")),
+        State::default()
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn state_path_is_separate_from_config() {
+    let path = state_path().unwrap();
+    assert!(path.ends_with("winc/state.json"), "{}", path.display());
+    assert_ne!(Some(path), crate::config_path());
+}
+
+#[test]
+fn window_frames_need_a_usable_size_and_may_have_no_position() {
+    let read = |text: &str| State::parse(text).window;
+    let frame = read(r#"{"window":{"width":800,"height":600,"scale":1}}"#).unwrap();
+    assert_eq!(frame.position, None);
+    assert!(!frame.maximized);
+    assert_eq!(
+        read(r#"{"window":{"width":0,"height":600,"scale":1}}"#),
+        None
+    );
+    assert_eq!(read(r#"{"window":{"width":800,"height":600}}"#), None);
+    assert_eq!(read(r#"{"window":"nothing"}"#), None);
+}
+
+/// 提交过的信息：相同的移到最前，最多留 `MAX_COMMIT_MESSAGES` 条。
+#[test]
+fn commit_messages_keep_the_newest_without_repeats() {
+    let mut state = State::default();
+    for i in 0..MAX_COMMIT_MESSAGES + 5 {
+        state.remember_commit_message(&format!("m{i}"));
+    }
+    state.remember_commit_message("m10");
+    state.remember_commit_message("");
+    assert_eq!(state.commit_messages.len(), MAX_COMMIT_MESSAGES);
+    assert_eq!(state.commit_messages[0], "m10");
+    assert_eq!(
+        state.commit_messages.iter().filter(|m| *m == "m10").count(),
+        1
+    );
+}

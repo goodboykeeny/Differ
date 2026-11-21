@@ -1,0 +1,304 @@
+## Settings card.
+
+settings-language = Language
+settings-language-auto = System Default
+settings-title = Settings
+settings-search-placeholder = Search Settings
+settings-search-results = Search Results
+settings-search-empty = No matching settings
+
+## Pages and groups.
+
+settings-page-appearance = Appearance
+settings-page-editor = Editor
+settings-page-format = Formatting
+settings-page-git = Git
+settings-page-terminal = Terminal
+settings-page-modules = Modules
+settings-page-keys = Shortcuts
+settings-page-about = About
+settings-section-format-tools = Formatters
+settings-section-fix-tools = Fixers
+
+## Setting names.
+
+settings-theme = Color Mode
+settings-light-theme = Light Theme
+settings-dark-theme = Dark Theme
+settings-ui-font = Interface Font
+settings-ui-size = Interface Font Size
+settings-font-weight = Global Font Weight
+settings-ui-zoom = Zoom
+settings-editor-font = Font
+settings-editor-size = Font Size
+settings-tab-width = Tab Width
+settings-auto-save = Auto Save
+settings-auto-save-off = Off
+settings-auto-save-focus = On Focus Change
+settings-auto-save-delay = 1 Second After Typing
+settings-hot-exit = Hot Exit
+settings-confirm-close = Confirm Before Closing
+settings-restore-folder = Restore Last Folder
+settings-sticky-scroll = Sticky Scroll
+settings-vim-mode = Vim Mode (Experimental)
+settings-vim-clipboard = Vim Clipboard
+settings-vim-clipboard-register = "+ and "* Only
+settings-vim-clipboard-yank = Sync on Yank
+settings-vim-clipboard-always = Always Sync
+settings-vim-relative-number = Vim Relative Line Numbers
+settings-vim-yank-highlight = Vim Highlight on Yank
+settings-render-whitespace = Whitespace
+settings-render-whitespace-none = None
+settings-render-whitespace-selection = Selection
+settings-render-whitespace-trailing = Trailing
+settings-render-whitespace-all = All
+settings-whole-lines = Show Long Lines in Full
+settings-word-wrap = Word Wrap
+settings-outline = Outline
+settings-compact-folders = Compact Folders
+settings-preview-on-click = Preview Tabs
+settings-minimap = Minimap
+settings-line-numbers = Line Numbers
+settings-diff-inline = Inline Diff View
+settings-status-bar = Status Bar
+settings-background-image = Background Image
+settings-background-opacity = Background Opacity
+settings-background-fit = Background Fit
+settings-background-fit-fill = Fill
+settings-background-fit-fit = Fit
+settings-background-fit-stretch = Stretch
+settings-background-fit-tile = Tile
+settings-background-none = None
+settings-background-choose = Choose Image…
+settings-background-failed = Couldn’t load the background image: { $reason }
+settings-restore-window = Remember Window Size and Position
+settings-animations = Animations
+settings-smooth-scrolling = Smooth Scrolling
+settings-remote-images = Markdown Remote Images
+settings-text-width = Markdown Text Width
+settings-markdown-line-numbers = Markdown Line Numbers
+settings-markdown-shortcuts = Markdown Shortcuts
+settings-markdown-focus = Focus Mode
+settings-markdown-typewriter = Typewriter Mode
+settings-markdown-selection-toolbar = Selection Toolbar
+settings-text-width-standard = Standard
+settings-text-width-wide = Wide
+settings-text-width-full = Full Width
+settings-check-updates = Check for Updates Automatically
+settings-system-title-bar = Use System Title Bar
+settings-format-on-save = Format on Save
+settings-fix-on-save = Fix Problems on Save
+settings-skip-on-save = Excluded Languages
+settings-add-language = Add Language…
+settings-terminal-module = Terminal
+settings-remote-module = SSH Remote (Experimental)
+settings-terminal-shell = Default Shell
+settings-terminal-position = Panel Position
+settings-terminal-tab-position = Tab Position
+settings-terminal-font = Font
+settings-terminal-size = Font Size
+settings-terminal-font-weight = Font Weight
+settings-terminal-copy-on-select = Copy on Select
+settings-terminal-confirm-close = Confirm Before Closing
+settings-system-proxy = Use System Proxy
+settings-git-inline-blame = Current Line Blame
+settings-git-auto-fetch = Auto Fetch
+settings-git-tree = Show Changes as Tree
+settings-git-remember-credentials = Remember Passwords
+settings-git-confirm-push = Confirm Before Pushing
+settings-git-staging-area = Staging Area
+settings-terminal-prompt = Winc Prompt
+settings-terminal-shell-integration = Shell Integration
+settings-terminal-application-priority = Terminal Application Priority
+settings-terminal-option-as-meta = Meta Key
+settings-key-search = Search Shortcuts
+
+## Setting descriptions.
+
+settings-auto-save-desc = Save changes when switching tabs, the terminal, or apps
+settings-hot-exit-desc = Quit without confirming each file and restore unsaved changes on next launch
+settings-confirm-close-desc = Ask before closing a window or quitting
+settings-restore-folder-desc = Reopen the last folder and its tabs on launch
+settings-sticky-scroll-desc = Pin the current function, class or heading to the top while scrolling
+settings-vim-mode-desc = Use Vim modes and keys in the editor
+settings-git-path = Git Program
+settings-git-path-auto = Automatic
+settings-git-path-desc = Path to the Git executable; found on PATH when empty
+settings-git-open-worktree = Open Worktrees In
+settings-git-open-worktree-ask = Always Ask
+settings-git-open-worktree-new = New Window
+settings-git-open-worktree-current = Current Window
+settings-git-pull = Pull Method
+settings-git-pull-config = Use Git Config
+settings-git-pull-merge = Merge
+settings-git-pull-rebase = Rebase
+settings-git-pull-desc = Merge or rebase upstream commits when pulling and syncing
+settings-git-open-worktree-desc = Which window a clicked worktree opens in
+settings-drop-folder = Dropped Folders
+settings-drop-folder-add = Add to Window
+settings-drop-folder-open = Don’t Add
+settings-drop-folder-desc = When not added, a folder opens from the editor area and is copied from the file tree
+settings-vim-clipboard-desc = When yanked or deleted text goes to the system clipboard
+settings-vim-relative-number-desc = Show the line number on the current line and distances on the others
+settings-vim-yank-highlight-desc = Briefly highlight the text that was just yanked
+settings-render-whitespace-desc = Mark spaces and tabs with dots and arrows
+settings-whole-lines-desc = Don’t cut off lines over 10,000 characters; the rest isn’t highlighted
+settings-word-wrap-desc = Wrap long lines at the editor width without changing the file
+settings-outline-desc = List the current file’s symbols and headings at the bottom of the Files view
+settings-compact-folders-desc = Show chains of single child folders as one row in the file tree and Git changes
+settings-preview-on-click-desc = Single-click opens files in a preview tab; double-click or edit to keep it
+settings-minimap-desc = Show a code overview beside the editor; click or drag to scroll
+settings-line-numbers-desc = Show line numbers beside the editor; diff views always show them
+settings-diff-inline-desc = Stack old and new content; when off, show them side by side
+settings-status-bar-desc = Show the cursor position, encoding, Git branch and more at the bottom of the window
+settings-background-image-desc = Show an image behind the window; uses more memory and drawing time
+settings-background-opacity-desc = Higher values make the background more visible
+settings-background-fit-desc = How the image fills the window when their proportions differ
+settings-restore-window-desc = Open new windows at the size and position they had when last closed
+settings-animations-desc = Animate panels, popups and list changes
+settings-smooth-scrolling-desc = Ease mouse-wheel scrolling into place
+settings-remote-images-desc = Show badges, screenshots and other remote images; when off, show alt text
+settings-text-width-desc = Maximum width of the text; it is centered in wider previews
+settings-markdown-line-numbers-desc = Show source line numbers beside the preview
+settings-markdown-shortcuts-desc = Use heading, list and link shortcuts in Markdown source too
+settings-markdown-focus-desc = Fade everything but the paragraph with the caret while editing Markdown
+settings-markdown-typewriter-desc = Keep the line with the caret in the middle of the editor while editing Markdown
+settings-markdown-selection-toolbar-desc = Show bold, italic, link and other buttons after selecting text
+settings-check-updates-desc = Check on launch and once a day, and show new versions in the status bar
+settings-system-title-bar-desc = Let the desktop draw the title bar and window frame
+settings-version = Version
+settings-version-line = Version { $version }
+settings-website = Website
+settings-license = License
+settings-link-open-failed = Couldn’t open link: { $error }
+settings-version-copied = Copied version { $version }
+settings-updates = Software Update
+settings-check-now = Check Now
+settings-release-notes = Release Notes
+settings-release-notes-view = View
+settings-updates-off = In-app updates aren’t available in this build
+settings-updates-idle = Not checked yet
+settings-updates-checking = Checking for updates…
+settings-updates-latest = Winc is up to date
+settings-updates-found = A new version is available: { $version }
+settings-updates-found-download = Version { $version } is available. Click Update in the status bar to open the downloads page
+settings-updates-found-pacman = Version { $version } is available. Run sudo pacman -Syu to update
+settings-updates-failed = Couldn’t check for updates. Try again later.
+settings-updates-failed-because = Couldn’t check for updates: { $reason }
+settings-updates-downloading = Downloading { $version }: { $percent }%
+settings-updates-ready = { $platform ->
+    [windows] { $version } is downloaded. It installs when you restart or quit Winc.
+   *[other] { $version } is installed. Restart Winc to use it.
+}
+settings-updates-install-failed = Couldn’t install the update: { $error }
+settings-format-on-save-desc = Format files with the tools below before saving
+settings-fix-on-save-desc = Fix problems that lint tools can fix before saving
+settings-skip-on-save-desc = Skip fixing and formatting files in these languages on save
+settings-git-module-desc = Show file status and the current branch in Git repositories
+settings-system-proxy-desc = Use the system proxy for updates, Git, remote images and other network requests when no proxy environment variable is set
+settings-git-inline-blame-desc = Show the author, time and message of the last change at the end of the caret line
+settings-git-auto-fetch-desc = Fetch from remotes in the background every 3 minutes
+settings-git-tree-desc = Group changes by folder; when off, list every file
+settings-git-remember-credentials-desc = Keep verified HTTPS passwords in the system keychain; turning this off removes the saved ones
+settings-git-confirm-push-desc = List the target repository and outgoing commits before pushing
+settings-git-staging-area-desc = Choose changes to commit with the staging area; when off, with checkboxes
+settings-terminal-module-desc-key = Terminal panel below the editor ({ $key }); starts a helper process when opened
+settings-terminal-module-desc = Terminal panel below the editor; starts a helper process when opened
+settings-remote-module-desc = Open folders on remote hosts over SSH, running a server process on the host while connected
+settings-terminal-copy-on-select-desc = Copy selected text to the clipboard automatically
+settings-terminal-confirm-close-desc = Ask before closing a tab that’s still running a program
+settings-terminal-shell-desc = Shell for new terminals; quote paths that contain spaces
+settings-terminal-prompt-desc = Replace the default prompt with the folder, Git branch and exit status
+settings-terminal-shell-integration-desc = { $platform ->
+    [windows] Group WSL output by command and load Python environments automatically
+   *[other] Group output by command and load Python environments automatically
+}
+settings-terminal-application-priority-desc = Pass shortcuts to the terminal application, keeping terminal management, copy and paste
+settings-terminal-option-as-meta-desc = Send an Esc prefix instead of typing special characters with the chosen ⌥
+
+## Setting values and hints.
+
+settings-theme-auto = Auto
+settings-theme-light = Light
+settings-theme-dark = Dark
+settings-skip-on-save-none = None
+settings-list-separator = { ", " }
+settings-font-default = System Default
+settings-font-others = Other Fonts
+settings-font-fallbacks = Fallback Fonts
+settings-terminal-shell-default = System Default
+settings-terminal-shell-custom = Custom Command…
+settings-terminal-shell-placeholder = Enter a command
+settings-terminal-position-bottom = Bottom
+settings-terminal-position-right = Right
+settings-terminal-tab-position-top = Top
+settings-terminal-tab-position-right = Right
+settings-terminal-font-default = Match Editor
+settings-terminal-option-as-meta-left = Left ⌥
+settings-terminal-option-as-meta-right = Right ⌥
+settings-terminal-option-as-meta-both = Both ⌥
+settings-terminal-option-as-meta-none = None
+settings-command-placeholder = Enter a command; { "{file}" } stands for the file path
+settings-command-edit-hint = Press { common-key-enter } to save, Esc to cancel
+settings-font-not-installed = Font “{ $name }” is not installed
+settings-font-file-not-found = Font file “{ $name }” not found
+settings-font-unsupported = The glyph format of font “{ $name }” is not supported
+settings-theme-used-when-dark = This theme is used when the system appearance is dark
+settings-theme-used-when-light = This theme is used when the system appearance is light
+
+## Theme names.
+
+settings-theme-name-winc-day = Winc Daylight
+settings-theme-name-winc-paper = Winc Rice Paper
+settings-theme-name-sky = Clear Sky
+settings-theme-name-paper = Plain Paper
+settings-theme-name-vermilion = Vermilion
+settings-theme-name-mist = Morning Mist
+settings-theme-name-veil-snow = Snow Veil
+settings-theme-name-veil-linen = Linen Veil
+settings-theme-name-winc-night = Winc Night Flight
+settings-theme-name-winc-slate = Winc Distant Hills
+settings-theme-name-ink = Ink Blue
+settings-theme-name-ember = Ember
+settings-theme-name-midnight = Midnight
+settings-theme-name-dusk = Dusk
+settings-theme-name-veil-night = Night Veil
+settings-theme-name-veil-umber = Umber Veil
+
+## Shortcuts page.
+
+settings-keys-recording = Press a shortcut to find its command
+settings-keys-search = Search commands
+settings-keys-no-command = No command uses this shortcut
+settings-keys-no-match = No matching commands
+settings-keys-keymap = Keymap
+settings-keys-imported = Imported shortcuts from { $name }
+settings-keys-imported-skipped = Imported shortcuts from { $name }, skipping { $count } with no match
+settings-keys-keymap-description = The default shortcuts, or import them from another editor on this computer
+settings-keys-keymap-changed = Shortcuts changed for { $count } commands
+settings-keys-edit = Edit
+settings-keys-reset = Reset
+settings-keys-save = Save
+settings-keys-cancel = Cancel
+settings-keys-edit-hint = New shortcuts are added after the existing ones
+settings-keys-conflict = Saving moves { $key } here from { $names }
+settings-keys-takes-typing = { $key } without a modifier replaces typing in the editor and input fields
+settings-keys-modified = Modified
+settings-keys-press = Press keys
+settings-keys-import-from = Import from { $name }…
+keymap-import-read-failed = Couldn’t read “{ $path }”: { $error }
+keymap-import-invalid = “{ $path }” isn’t valid
+keymap-import-unsupported = The “{ $name }” keymap can’t be imported
+keymap-import-missing = Couldn’t find the “{ $name }” keymap
+
+## Font size and the configuration file.
+
+settings-font-size-limit = Editor font size is already { $size } and can’t be adjusted further
+settings-font-size = Editor font size { $size }
+settings-terminal-font-size-limit = Terminal font size is already { $size } and can’t be adjusted further
+settings-terminal-font-size = Terminal font size { $size }
+settings-zoom-limit = Zoom is already { $zoom }% and can’t be adjusted further
+settings-zoom = Zoom { $zoom }%
+settings-config-backed-up = The configuration file couldn’t be parsed; it was saved as { $path } and the new settings were written
+settings-config-comments-backed-up = Comments in the configuration file can’t be kept when writing settings; the original was saved as { $path }
+settings-config-write-failed = Couldn’t write the configuration file: { $error }

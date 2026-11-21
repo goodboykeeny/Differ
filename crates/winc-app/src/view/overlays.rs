@@ -1,0 +1,1188 @@
+//! 浮在编辑区上的条和卡片：查找条、跳转条、快速打开卡片和右上角的提示条。
+//!
+//! 各元素的几何由 `crate::layout` 计算；本模块按当前状态绘制，并把可点击的按钮记入
+//! `App` 上对应的 `*_hits` 表，点击处理在 `app` 各模块中。
+
+use winc_core::Lines;
+use winc_i18n::t;
+
+use super::*;
+use crate::app::{
+    ConflictAction, Focus, NoticeAction, NoticeGhost, NoticeKind, PICKER_ICON_X, PICKER_ROW,
+    PICKER_TEXT_X, PickerPart, Recent,
+};
+use crate::icons::Direction;
+use crate::layout::{PickerParts, SearchButton};
+
+/// 绘制查找条（⌘F、⌥⌘F）：浮在编辑区右上角，内含查找输入框，展开后含替换输入框。
+pub(super) fn draw_search(app: &mut App, frame: &mut Frame<'_>) {
+    // 绘制时需要更新输入框中记录的几何信息：先将输入框从 `app` 中取出，绘制后放回。
+    let mut find = std::mem::take(&mut app.bars.find.input);
+    let mut replace = std::mem::take(&mut app.bars.find.replace_input);
+    let caret = draw_search_bar(app, frame, &mut find, &mut replace);
+    app.bars.find.input = find;
+    app.bars.find.replace_input = replace;
+
+    if caret.is_some() {
+        app.ime.cursor = caret;
+    }
+}
+
+/// 绘制查找条的内容，返回有焦点的输入框的光标矩形（供输入法候选框定位）。
+///
+/// 第一行：左侧是展开替换的箭头和查找输入框，输入框右端是匹配计数；右侧是区分大小写、全字匹配、
+/// 正则三个开关，竖线之后是上一个、下一个、关闭，以及「只显示匹配的行」开关。
+/// 展开后第二行是替换输入框和两个替换按钮。
+fn draw_search_bar(
+    app: &App,
+    frame: &mut Frame<'_>,
+    find: &mut TextField,
+    replace: &mut TextField,
+) -> Option<Rect> {
+    let p = app.palette;
+    let bar = app.layout.search;
+    let parts = SearchParts::new(bar);
+    let search = &app.bars.search;
+    let hovered = |button| app.pointer.hover == Hover::Search(button);
+    let expanded = parts.replace_field.w > 0.0;
+    let can_replace = app.can_replace();
+    draw_card(frame, p, bar, RADIUS_BAR, p.popup_bg);
+
+    draw_button(
+        frame,
+        p,
+        parts.expand,
+        bar,
+        can_replace && hovered(SearchButton::Expand),
+        false,
+    );
+    let direction = if expanded {
+        Direction::Down
+    } else {
+        Direction::Right
+    };
+    icons::chevron(
+        frame,
+        center(parts.expand),
+        8.0,
+        direction,
+        if can_replace {
+            p.text_muted
+        } else {
+            p.text_dim
+        },
+        bar,
+    );
+
+    let query = &search.query;
+    let matches = search.matches().len();
+    // 截断了，或有行因正则回溯过多而放弃查找：计数是下限。
+    let incomplete = search.is_truncated() || search.gave_up();
+    let total = if incomplete {
+        format!("{matches}+")
+    } else {
+        matches.to_string()
+    };
+    let searching = !search.is_complete();
+    let count = match (matches, search.current) {
+        (0, _) if query.is_empty() => String::new(),
+        _ if search.error().is_some() => t!("workspace-find-regex-invalid").to_owned(),
+        (0, _) if searching => t!("workspace-find-searching").to_owned(),
+        (0, _) => t!("workspace-find-no-results").to_owned(),
+        (_, Some(i)) => format!("{}/{total}{}", i + 1, if searching { "…" } else { "" }),
+        (_, None) => {
+            let more = if incomplete { "+" } else { "" };
+            let count = t!("workspace-find-count", count = matches, more = more);
+            format!("{count}{}", if searching { "…" } else { "" })
+        }
+    };
+    let failed = search.error().is_some() || (!query.is_empty() && matches == 0 && !searching);
+    let count_color = if failed { p.error } else { p.text_dim };
+
+    // 匹配计数靠查找区域右端，查找输入框使用剩余的宽度。
+    let field = parts.field;
+    let count_x = field.right() - frame.measure(FontKind::Ui, app.fonts.ui_small, &count);
+    ui_text_small(frame, app, count_x, field, &count, count_color, field);
+
+    let text_right = if count.is_empty() {
+        field.right()
+    } else {
+        count_x - 10.0
+    };
+    let text_area = Rect::new(field.x, field.y, (text_right - field.x).max(0.0), field.h);
+    let focused = app.focus == Focus::Search;
+    let mut caret = draw_bar_field(
+        app,
+        frame,
+        text_area,
+        find,
+        t!("workspace-find-placeholder"),
+        focused,
+    );
+
+    let toggles = [
+        (
+            parts.case_toggle,
+            search.case_sensitive,
+            hovered(SearchButton::Case),
+        ),
+        (
+            parts.word_toggle,
+            search.whole_word,
+            hovered(SearchButton::Word),
+        ),
+        (
+            parts.regex_toggle,
+            search.regex,
+            hovered(SearchButton::Regex),
+        ),
+    ];
+    draw_search_options(app, frame, toggles, bar);
+
+    frame.rect(parts.divider, p.popup_border);
+
+    // 没有结果时，上一个、下一个、替换按钮都置灰，悬停也不响应。
+    let can_step = matches > 0;
+    let step = if can_step { p.text_muted } else { p.text_dim };
+    for button in [SearchButton::Prev, SearchButton::Next] {
+        let rect = parts.rect(button);
+        draw_button(frame, p, rect, bar, can_step && hovered(button), false);
+    }
+    // 「只显示匹配的行」开关：开启时与三个选项开关一样铺强调色底色。差异标签里用不了（两侧
+    // 按改动对齐），预览上也用不了（没有「行」），置灰。
+    let on = app.bars.find.filter_lines;
+    let filter_usable = app.editor.active().is_none_or(|d| d.diff.is_none())
+        && !app.markdown_focused()
+        && !app.markdown_live();
+    draw_toggle(
+        frame,
+        p,
+        parts.filter,
+        bar,
+        filter_usable && hovered(SearchButton::Filter),
+        on,
+    );
+    let filter_color = match (filter_usable, on) {
+        (false, _) => p.text_dim,
+        (true, true) => p.accent,
+        (true, false) => p.text_muted,
+    };
+    icons::filter(frame, center(parts.filter), filter_color, bar);
+    draw_button(
+        frame,
+        p,
+        parts.close,
+        bar,
+        hovered(SearchButton::Close),
+        false,
+    );
+    icons::chevron(frame, center(parts.prev), 8.0, Direction::Up, step, bar);
+    icons::chevron(frame, center(parts.next), 8.0, Direction::Down, step, bar);
+    icons::close(frame, center(parts.close), 7.0, p.text_muted, bar);
+
+    if !expanded {
+        return caret;
+    }
+
+    let line = Rect::new(
+        field.x,
+        bar.y + BAR_HEIGHT,
+        parts.close.right() - field.x,
+        1.0,
+    );
+    frame.rect(line, p.popup_border);
+
+    let focused = app.focus == Focus::Replace;
+    let area = parts.replace_field;
+    let placeholder = t!("workspace-find-replace-placeholder");
+    let replace_caret = draw_bar_field(app, frame, area, replace, placeholder, focused);
+    caret = caret.or(replace_caret);
+
+    // 「替换」「全部替换」是图标按钮，位于「下一个」「关闭」的正下方；没有结果时置灰。
+    for button in [SearchButton::ReplaceOne, SearchButton::ReplaceAll] {
+        let rect = parts.rect(button);
+        draw_button(frame, p, rect, bar, can_step && hovered(button), false);
+
+        if button == SearchButton::ReplaceOne {
+            icons::replace_one(frame, center(rect), step, bar);
+        } else {
+            icons::replace_all(frame, center(rect), step, bar);
+        }
+    }
+
+    caret
+}
+
+/// 绘制跳转条（⌃G）：样式与查找条相同，浮在编辑区顶部居中，右端显示总行数。
+pub(super) fn draw_goto(app: &mut App, frame: &mut Frame<'_>) {
+    let Some(mut field) = app.bars.goto_input.take() else {
+        return;
+    };
+
+    let caret = {
+        let app = &*app;
+        let p = app.palette;
+        let bar = app.prompt_bar();
+        draw_card(frame, p, bar, RADIUS_BAR, p.popup_bg);
+
+        // 跳转到行、储藏说明，或者输入新标签的名字。
+        let (title, placeholder, hint) = match &app.bars.prompt_kind {
+            crate::app::PromptKind::GoTo => {
+                let total = app.editor.active().map_or(0, |d| d.text().line_count());
+                (
+                    t!("workspace-goto-title"),
+                    t!("workspace-goto-placeholder"),
+                    t!("workspace-goto-total", count = total),
+                )
+            }
+            crate::app::PromptKind::GoToOffset => {
+                let view = app.editor.active().and_then(|d| d.hex.as_deref());
+                let size = winc_editor::size_text(view.map_or(0, |v| v.size()));
+                (
+                    t!("hex-goto-title"),
+                    t!("hex-goto-placeholder"),
+                    t!("hex-goto-total", size = size),
+                )
+            }
+            crate::app::PromptKind::Stash | crate::app::PromptKind::StashFiles(_) => (
+                t!("workspace-stash-title"),
+                t!("workspace-stash-placeholder"),
+                t!("workspace-stash-hint").to_owned(),
+            ),
+            crate::app::PromptKind::RenameBranch { .. } => (
+                t!("workspace-rename-branch-title"),
+                t!("workspace-rename-branch-placeholder"),
+                t!("workspace-rename-branch-hint").to_owned(),
+            ),
+            crate::app::PromptKind::NewTag { at } => (
+                t!("workspace-tag-title"),
+                t!("workspace-tag-placeholder"),
+                t!(
+                    "workspace-tag-hint",
+                    commit = crate::app::git::log::short(at)
+                ),
+            ),
+            // Vim 模式的命令行与查找画在状态栏所在的一行，不经此处。
+            crate::app::PromptKind::VimSearch { .. } | crate::app::PromptKind::VimCommand => {
+                ("", "", String::new())
+            }
+        };
+        // 右侧的说明最多占一半宽度，保证输入框留有空间。
+        let (size, max) = (app.fonts.ui_small, bar.w / 2.0);
+        let hint = super::ellipsize(frame, &hint, size, max).into_owned();
+        let hint_x = bar.right() - 14.0 - frame.measure(FontKind::Ui, app.fonts.ui_small, &hint);
+        ui_text_small(frame, app, hint_x, bar, &hint, p.text_dim, bar);
+
+        let start = ui_text(frame, app, bar.x + 14.0, bar, title, p.text_muted, bar) + 10.0;
+        let area = Rect::new(start, bar.y, (hint_x - 10.0 - start).max(0.0), bar.h);
+        let focused = app.focus == Focus::Prompt;
+        draw_bar_field(app, frame, area, &mut field, placeholder, focused)
+    };
+
+    app.bars.goto_input = Some(field);
+
+    if caret.is_some() {
+        app.ime.cursor = caret;
+    }
+}
+
+/// 绘制面板中第 `i` 条结果所在行 `row` 的底色：选中的那一行铺选中色，鼠标悬停的那一行铺
+/// 悬停色。
+fn draw_pick_row(app: &App, frame: &mut Frame<'_>, row: Rect, i: usize, clip: Rect) {
+    let p = app.palette;
+    let color = if i == app.overlays.picker.selected {
+        p.selected_inactive
+    } else if app.pointer.hover == Hover::PickerRow(i) {
+        p.hover
+    } else {
+        return;
+    };
+    frame.rect_clipped(row.inset(6.0, 1.0), color, RADIUS_ROW, clip);
+}
+
+/// 绘制快速打开卡片（⌘P）：上方是输入框，下方是结果列表，整体是一张带阴影的圆角卡片。
+///
+/// 文件列表中每条是「文件名 + 淡色的所在目录」，选中项底色高亮，输入框右端显示文件总数。
+/// 输入框以 `>` 开头时是命令面板（⇧⌘P），每条是「命令 + 淡色的英文名」，右侧是快捷键；
+/// 以 `@` 开头时列出当前文档的符号。列出最近的目录（⌃R）时，每条是「目录名 + 淡色的上级
+/// 目录」，输入框右端是在新窗口打开的按键。
+///
+/// 文件索引尚未建好时，列表区显示「正在索引文件…」。
+pub(super) fn draw_picker(app: &mut App, frame: &mut Frame<'_>) {
+    if app.picker_is_git() {
+        super::git::picker::draw(app, frame);
+        return;
+    }
+    let rect = app.layout.picker;
+    if rect.w <= 0.0 || rect.h <= 0.0 {
+        return;
+    }
+
+    if app.overlays.picker.places.is_some() {
+        if let Some(caret) = super::editor::places::draw_live(app, frame, rect) {
+            app.ime.cursor = Some(caret);
+        }
+        return;
+    }
+
+    let parts = PickerParts::new(rect);
+    let (bar, list) = (parts.bar, parts.list);
+
+    let hint_x = {
+        let app_mut = &mut *app;
+        let p = app_mut.palette;
+
+        draw_card(frame, p, rect, RADIUS_BAR, p.popup_bg);
+
+        // 输入框一行：左侧是放大镜，中间是输入区，右侧显示条目总数。放大镜与下方各行的文件
+        // 图标处于同一条竖直轴线上。
+        let x = bar.x + PICKER_ICON_X + icons::FILE_WIDTH / 2.0;
+        let cy = bar.y + bar.h / 2.0;
+        icons::magnifier(frame, (x, cy), p.text_dim, bar);
+
+        let total = if app_mut.overlays.picker.folders {
+            t!("workspace-picker-folders-new-window").to_owned()
+        } else if app_mut.overlays.picker.remote.is_some() {
+            // 目录阶段在右端显示正在浏览的主机。
+            app_mut.remote_picker_host().unwrap_or_default().to_owned()
+        } else if app_mut.overlays.picker.vim_list.is_some() {
+            String::new()
+        } else if app_mut.overlays.picker.languages {
+            let count = winc_syntax::languages().len();
+            t!("workspace-picker-languages", count = count)
+        } else if app_mut.picker_lists_commands() {
+            t!(
+                "workspace-picker-commands",
+                count = app_mut.overlays.picker.hits.len()
+            )
+        } else if app_mut.picker_lists_symbols() {
+            t!(
+                "workspace-picker-symbols",
+                count = app_mut.overlays.picker.hits.len()
+            )
+        } else {
+            // 有查询时写成「命中数 / 总数」，否则只显示总数，无法看出筛选后的数量。
+            let total = app_mut.overlays.picker.index.quick_open_len();
+            match app_mut.overlays.picker.index.matches() {
+                Some(n) => t!("workspace-picker-files-matched", matched = n, total = total),
+                None => t!("workspace-picker-files", count = total),
+            }
+        };
+        let hint_w = frame.measure(FontKind::Ui, app_mut.fonts.ui_small, &total);
+        let hint_x = bar.right() - 14.0 - hint_w;
+        ui_text_small(frame, app_mut, hint_x, bar, &total, p.text_dim, bar);
+        hint_x
+    };
+
+    // 输入文本与下方各行的名称从同一个 x 位置开始，右端不伸到输入框右端的文字下面。
+    let text_x = bar.x + PICKER_TEXT_X;
+    let text_w = (hint_x - 12.0 - text_x).min(bar.w - PICKER_TEXT_X - 100.0);
+    let text_area = Rect::new(text_x, bar.y, text_w.max(0.0), bar.h);
+
+    let placeholder = if app.overlays.picker.folders {
+        t!("workspace-picker-folders-placeholder")
+    } else if app.overlays.picker.languages {
+        t!("workspace-picker-languages-placeholder")
+    } else if app.overlays.picker.remote.is_some() {
+        match app.remote_picker_host() {
+            Some(_) => t!("workspace-picker-remote-folders-placeholder"),
+            None => t!("workspace-picker-remote-hosts-placeholder"),
+        }
+    } else if let Some(list) = &app.overlays.picker.vim_list {
+        match list.kind {
+            winc_vim::Listing::Registers => t!("workspace-picker-vim-registers"),
+            winc_vim::Listing::Marks => t!("workspace-picker-vim-marks"),
+            winc_vim::Listing::Buffers => t!("workspace-picker-vim-buffers"),
+        }
+    } else {
+        t!("workspace-picker-placeholder")
+    };
+    let caret = {
+        let app_mut = &mut *app;
+        let focused = app_mut.focus == Focus::Picker;
+        let mut field = std::mem::take(&mut app_mut.overlays.picker.input);
+        let caret = draw_bar_field(app_mut, frame, text_area, &mut field, placeholder, focused);
+        app_mut.overlays.picker.input = field;
+        caret
+    };
+
+    if caret.is_some() {
+        app.ime.cursor = caret;
+    }
+
+    if rect.h <= BAR_HEIGHT {
+        return;
+    }
+
+    let p = app.palette;
+    frame.rect_clipped(
+        Rect::new(bar.x + 1.0, bar.bottom(), bar.w - 2.0, 1.0),
+        p.border,
+        0.0,
+        rect,
+    );
+
+    if app.overlays.picker.folders {
+        app.hits.picker_parts = draw_folder_rows(app, frame, &parts);
+        return;
+    }
+    if app.overlays.picker.remote.is_some() {
+        app.hits.picker_parts = draw_remote_rows(app, frame, &parts);
+        return;
+    }
+    if app.overlays.picker.vim_list.is_some() {
+        draw_vim_rows(app, frame, &parts);
+        return;
+    }
+    if app.overlays.picker.languages {
+        draw_language_rows(app, frame, &parts);
+        return;
+    }
+    if app.picker_lists_commands() {
+        draw_palette_rows(app, frame, &parts);
+        return;
+    }
+    if app.picker_lists_symbols() {
+        draw_symbol_rows(app, frame, &parts);
+        return;
+    }
+    if app.editor.root().is_none() {
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        let message = t!("workspace-picker-no-folder");
+        ui_text(
+            frame,
+            app,
+            list.x + PICKER_TEXT_X,
+            row,
+            message,
+            p.text_dim,
+            list,
+        );
+        return;
+    }
+    if app.picker_indexing() {
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        ui_text(
+            frame,
+            app,
+            list.x + PICKER_TEXT_X,
+            row,
+            t!("workspace-picker-indexing"),
+            p.text_dim,
+            list,
+        );
+        return;
+    }
+
+    if app.overlays.picker.hits.is_empty() {
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        let goto = app
+            .overlays
+            .picker
+            .goto
+            .as_deref()
+            .map(|g| match g.split_once(':') {
+                Some((line, col)) => t!(
+                    "workspace-picker-goto-line-column",
+                    line = line,
+                    column = col
+                ),
+                None => t!("workspace-picker-goto-line", line = g),
+            });
+        let message = match goto {
+            Some(goto) if app.editor.active.is_some() => goto,
+            _ if app.overlays.picker.index.quick_open_len() == 0 => {
+                t!("workspace-picker-folder-empty").to_owned()
+            }
+            _ => t!("workspace-picker-no-matching-files").to_owned(),
+        };
+        ui_text(
+            frame,
+            app,
+            list.x + PICKER_TEXT_X,
+            row,
+            &message,
+            p.text_dim,
+            list,
+        );
+        return;
+    }
+
+    let scroll = drawn_scroll(app.overlays.picker.scroll);
+
+    for i in parts.visible(scroll, app.overlays.picker.hits.len()) {
+        let index = app.overlays.picker.hits[i];
+        let row = parts.row(i, scroll);
+        // 滚动时列表上下两端的行只露出一部分，绘制时裁剪到列表区域内。
+        let clip = row.intersect(list);
+
+        let Some(file) = app.overlays.picker.index.file(index) else {
+            continue;
+        };
+
+        draw_pick_row(app, frame, row, i, clip);
+
+        let (dir, name) = match file.path.rsplit_once('/') {
+            Some((dir, name)) => (dir, name),
+            None => ("", file.path),
+        };
+
+        let cy = icon_center_y(app, row, app.fonts.ui);
+        draw_file_icon(frame, p, (row.x + PICKER_ICON_X, cy), name, clip);
+
+        // 查询命中的字用强调色标出，文件名和目录名分别标注。
+        let matched = app.picker_matched(i);
+        let dir_len = file.path.chars().count() - name.chars().count();
+        let in_name: Vec<usize> = matched
+            .iter()
+            .filter_map(|&c| c.checked_sub(dir_len))
+            .collect();
+        let at = (row.x + PICKER_TEXT_X, row);
+        let x = marked_label(frame, app, app.fonts.ui, at, name, &in_name, p.text, clip);
+
+        // 在「最近打开」分组的第一行右侧显示「最近打开」标注。
+        let mut right = row.right() - 12.0;
+        if i == 0 && app.overlays.picker.recent > 0 {
+            let label = t!("workspace-picker-recently-opened");
+            right -= frame.measure(FontKind::Ui, app.fonts.ui_small, label);
+            ui_text_small(frame, app, right, row, label, p.text_dim, clip);
+            right -= 12.0;
+        }
+
+        if !dir.is_empty() {
+            let room = (right - x - 8.0).max(0.0);
+            if room > 20.0 {
+                let shown = ellipsize(frame, dir, app.fonts.ui_small, room);
+                // 从中间截短了的目录下标对不上，不标。
+                let in_dir: Vec<usize> = if shown.len() == dir.len() {
+                    matched.iter().copied().filter(|&c| c < dir_len).collect()
+                } else {
+                    Vec::new()
+                };
+                let at = (x + 8.0, row);
+                let size = app.fonts.ui_small;
+                marked_label(frame, app, size, at, &shown, &in_dir, p.text_dim, clip);
+            }
+        }
+    }
+}
+
+/// 绘制连接远端主机的选择面板：图标、名字，其后是淡色的说明；各行之后（没有行时在第一行的
+/// 位置）是正在读取、读取失败或没有匹配项的说明。
+///
+/// 返回各行行尾「✕」的矩形。
+fn draw_remote_rows(
+    app: &App,
+    frame: &mut Frame<'_>,
+    parts: &PickerParts,
+) -> Vec<(Rect, PickerPart)> {
+    use crate::app::remote::picker::RowIcon;
+
+    let p = app.palette;
+    let list = parts.list;
+    let mut hits = Vec::new();
+    let Some(rows) = app.overlays.picker.remote.as_ref().map(|shown| &shown.rows) else {
+        return hits;
+    };
+    let scroll = drawn_scroll(app.overlays.picker.scroll);
+    let count = app.overlays.picker.hits.len();
+    for i in parts.visible(scroll, count) {
+        let Some(item) = rows.get(app.overlays.picker.hits[i]) else {
+            continue;
+        };
+        let row = parts.row(i, scroll);
+        let clip = row.intersect(list);
+        let forget = PickerPart::ForgetRemote(i);
+        let selected = i == app.overlays.picker.selected;
+        draw_pick_row(app, frame, row, i, clip);
+        if !selected && app.pointer.hover == Hover::PickerPart(forget) {
+            frame.rect_clipped(row.inset(6.0, 1.0), p.hover, RADIUS_ROW, clip);
+        }
+        let cy = icon_center_y(app, row, app.fonts.ui);
+        // 各种图标的中心与文件图标的中心对齐。
+        let middle = row.x + PICKER_ICON_X + icons::FILE_WIDTH / 2.0;
+        match item.icon {
+            RowIcon::Host => icons::server(frame, (middle, cy), p.text_muted, clip),
+            RowIcon::Config => icons::gear(frame, (middle, cy), p.text_muted, clip),
+            RowIcon::Folder | RowIcon::Open => {
+                let x = middle - icons::FOLDER_WIDTH / 2.0;
+                let open = item.icon == RowIcon::Open;
+                icons::folder(frame, (x, cy - 6.0), open, p.folder, clip);
+            }
+        }
+        let x = ui_text(
+            frame,
+            app,
+            row.x + PICKER_TEXT_X,
+            row,
+            &item.title,
+            p.text,
+            clip,
+        );
+        // 可以移除的行在行尾有「✕」，只在选中或悬停时显示，位置同最近目录面板中的一样。
+        let mut right = row.right() - 14.0;
+        if item.removable {
+            let close = Rect::new(
+                row.right() - 8.0 - BUTTON_SMALL,
+                row.y + 2.0,
+                BUTTON_SMALL,
+                row.h - 4.0,
+            );
+            let hovered = matches!(app.pointer.hover,
+                Hover::PickerRow(r) | Hover::PickerPart(PickerPart::ForgetRemote(r)) if r == i);
+            if selected || hovered {
+                let over = app.pointer.hover == Hover::PickerPart(forget);
+                draw_button(frame, p, close, clip, over, false);
+                icons::close(frame, center(close), 6.5, p.text_muted, clip);
+                hits.push((close, forget));
+            }
+            right = close.x - 8.0;
+        }
+        // 选中的一行在右端提示可用的按键，说明文字让出相应的位置。
+        if let Some(hint) = item.hint().filter(|_| selected) {
+            right -= frame.measure(FontKind::Ui, app.fonts.ui_small, hint);
+            ui_text_small(frame, app, right, row, hint, p.text_dim, clip);
+            right -= 12.0;
+        }
+        let room = (right - x - 12.0).max(0.0);
+        if room > 20.0 && !item.detail.is_empty() {
+            let text = ellipsize(frame, &item.detail, app.fonts.ui_small, room);
+            ui_text_small(frame, app, x + 12.0, row, &text, p.text_dim, clip);
+        }
+    }
+    if let Some(message) = app.remote_picker_message() {
+        let y = list.y + count as f32 * PICKER_ROW - scroll;
+        let row = Rect::new(list.x, y, list.w, PICKER_ROW);
+        if row.intersect(list).h > 0.0 {
+            ui_text(
+                frame,
+                app,
+                list.x + PICKER_TEXT_X,
+                row,
+                &message,
+                p.text_dim,
+                list,
+            );
+        }
+    }
+    hits
+}
+
+/// 绘制 Vim 模式的寄存器、标记或文档的列表：名字，其后是淡色的内容预览。
+fn draw_vim_rows(app: &App, frame: &mut Frame<'_>, parts: &PickerParts) {
+    let p = app.palette;
+    let list = parts.list;
+    let Some(rows) = app
+        .overlays
+        .picker
+        .vim_list
+        .as_ref()
+        .map(|shown| &shown.rows)
+    else {
+        return;
+    };
+    if app.overlays.picker.hits.is_empty() {
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        let message = t!("workspace-picker-vim-empty");
+        ui_text(
+            frame,
+            app,
+            list.x + PICKER_TEXT_X,
+            row,
+            message,
+            p.text_dim,
+            list,
+        );
+        return;
+    }
+    let scroll = drawn_scroll(app.overlays.picker.scroll);
+    for i in parts.visible(scroll, app.overlays.picker.hits.len()) {
+        let Some(item) = rows.get(app.overlays.picker.hits[i]) else {
+            continue;
+        };
+        let row = parts.row(i, scroll);
+        let clip = row.intersect(list);
+        draw_pick_row(app, frame, row, i, clip);
+        let x = ui_text(
+            frame,
+            app,
+            row.x + PICKER_TEXT_X,
+            row,
+            &item.label,
+            p.text,
+            clip,
+        );
+        let room = (row.right() - 14.0 - x - 12.0).max(0.0);
+        if room > 20.0 {
+            let text = ellipsize(frame, &item.text, app.fonts.ui_small, room);
+            ui_text_small(frame, app, x + 12.0, row, &text, p.text_dim, clip);
+        }
+    }
+}
+
+/// 绘制命令面板的结果列表：命令名，其后是淡色的英文名，右侧是快捷键；最近执行过的命令
+/// 分组的第一行标注「最近使用」。
+fn draw_palette_rows(app: &App, frame: &mut Frame<'_>, parts: &PickerParts) {
+    let p = app.palette;
+    let list = parts.list;
+    if app.overlays.picker.hits.is_empty() {
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        ui_text(
+            frame,
+            app,
+            list.x + PICKER_TEXT_X,
+            row,
+            t!("workspace-picker-no-matching-commands"),
+            p.text_dim,
+            list,
+        );
+        return;
+    }
+
+    let scroll = drawn_scroll(app.overlays.picker.scroll);
+    for i in parts.visible(scroll, app.overlays.picker.hits.len()) {
+        let Some(&action) = crate::app::palette().get(app.overlays.picker.hits[i]) else {
+            continue;
+        };
+        let row = parts.row(i, scroll);
+        let clip = row.intersect(list);
+        draw_pick_row(app, frame, row, i, clip);
+
+        let mut right = row.right() - 14.0;
+        if let Some(shortcut) = keymap::shortcut(action) {
+            right -= frame.measure(FontKind::Ui, app.fonts.ui_small, &shortcut);
+            ui_text_small(frame, app, right, row, &shortcut, p.text_dim, clip);
+            right -= 16.0;
+        }
+        if i == 0 && app.overlays.picker.recent > 0 {
+            let label = t!("workspace-picker-recently-used");
+            right -= frame.measure(FontKind::Ui, app.fonts.ui_small, label);
+            ui_text_small(frame, app, right, row, label, p.text_dim, clip);
+            right -= 16.0;
+        }
+
+        // 查询命中的字用强调色标出来：中文名、英文名谁命中标谁。
+        let title = action.title();
+        let marked = app.palette_matched(title);
+        let at = (row.x + PICKER_TEXT_X, row);
+        let x = marked_label(frame, app, app.fonts.ui, at, title, &marked, p.text, clip);
+        let room = (right - x - 8.0).max(0.0);
+        if room > 20.0 {
+            let english = ellipsize(frame, action.english(), app.fonts.ui_small, room);
+            let marked = if english.len() == action.english().len() {
+                app.palette_matched(&english)
+            } else {
+                Vec::new()
+            };
+            let (at, size) = ((x + 8.0, row), app.fonts.ui_small);
+            marked_label(frame, app, size, at, &english, &marked, p.text_dim, clip);
+        }
+    }
+}
+
+/// 绘制语言列表：当前文档的语言前面打勾，名字中命中查询的字标出，右侧淡色写出扩展名。
+fn draw_language_rows(app: &App, frame: &mut Frame<'_>, parts: &PickerParts) {
+    use crate::app::LanguageRow;
+    let p = app.palette;
+    let list = parts.list;
+    if app.overlays.picker.hits.is_empty() {
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        let message = t!("workspace-picker-no-matching-languages");
+        ui_text(
+            frame,
+            app,
+            list.x + PICKER_TEXT_X,
+            row,
+            message,
+            p.text_dim,
+            list,
+        );
+        return;
+    }
+    let current = app.editor.active().map(|d| d.highlighter.language().id);
+    let scroll = drawn_scroll(app.overlays.picker.scroll);
+    for i in parts.visible(scroll, app.overlays.picker.hits.len()) {
+        let Some(language) = LanguageRow::of(app.overlays.picker.hits[i]) else {
+            continue;
+        };
+        let row = parts.row(i, scroll);
+        let clip = row.intersect(list);
+        draw_pick_row(app, frame, row, i, clip);
+        let checked = match language {
+            LanguageRow::Language(k) => winc_syntax::languages().get(k).map(|l| l.id) == current,
+            _ => false,
+        };
+        if checked {
+            let cy = icon_center_y(app, row, app.fonts.ui);
+            let x = row.x + PICKER_ICON_X + icons::FILE_WIDTH / 2.0;
+            icons::check(frame, (x, cy), 9.0, p.accent, clip);
+        }
+        let mut right = row.right() - 14.0;
+        let extensions = language.extensions();
+        if !extensions.is_empty() {
+            right -= frame.measure(FontKind::Ui, app.fonts.ui_small, &extensions);
+            ui_text_small(frame, app, right, row, &extensions, p.text_dim, clip);
+            right -= 16.0;
+        }
+        let title = language.title();
+        let marked = app.language_matched(i);
+        let at = (row.x + PICKER_TEXT_X, row);
+        let clip = Rect::new(clip.x, clip.y, (right - clip.x).max(0.0), clip.h);
+        marked_label(frame, app, app.fonts.ui, at, title, &marked, p.text, clip);
+    }
+}
+
+/// 绘制当前文档的符号列表：名称，其后是淡色的上级符号（所属的类型或标题），右侧是淡色的符号种类。
+fn draw_symbol_rows(app: &App, frame: &mut Frame<'_>, parts: &PickerParts) {
+    let p = app.palette;
+    let list = parts.list;
+    let empty = match &app.overlays.picker.symbols {
+        None => Some(t!("workspace-no-open-file")),
+        Some(s) if s.too_large => Some(t!("workspace-picker-symbols-too-large")),
+        Some(s) if s.items.is_empty() => Some(t!("workspace-picker-no-symbols")),
+        Some(_) if app.overlays.picker.hits.is_empty() => {
+            Some(t!("workspace-picker-no-matching-symbols"))
+        }
+        Some(_) => None,
+    };
+    if let Some(message) = empty {
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        ui_text(
+            frame,
+            app,
+            list.x + PICKER_TEXT_X,
+            row,
+            message,
+            p.text_dim,
+            list,
+        );
+        return;
+    }
+    let Some(symbols) = app.overlays.picker.symbols.as_ref() else {
+        return;
+    };
+
+    let scroll = drawn_scroll(app.overlays.picker.scroll);
+    for i in parts.visible(scroll, app.overlays.picker.hits.len()) {
+        let Some(symbol) = symbols.items.get(app.overlays.picker.hits[i]) else {
+            continue;
+        };
+        let row = parts.row(i, scroll);
+        let clip = row.intersect(list);
+        draw_pick_row(app, frame, row, i, clip);
+
+        let label = symbol.kind.label();
+        let right = row.right() - 14.0 - frame.measure(FontKind::Ui, app.fonts.ui_small, label);
+        ui_text_small(frame, app, right, row, label, p.text_dim, clip);
+
+        let room = (right - row.x - PICKER_TEXT_X - 16.0).max(0.0);
+        let name = ellipsize(frame, &symbol.name, app.fonts.ui, room);
+        let x = ui_text(frame, app, row.x + PICKER_TEXT_X, row, &name, p.text, clip);
+        let room = (right - x - 8.0 - 16.0).max(0.0);
+        if let Some(container) = &symbol.container
+            && room > 20.0
+        {
+            let container = ellipsize(frame, container, app.fonts.ui_small, room);
+            ui_text_small(frame, app, x + 8.0, row, &container, p.text_dim, clip);
+        }
+    }
+}
+
+/// 绘制最近打开的目录和文件：图标、名字，其后是淡色的上级目录；选中或悬停的那一行右端有
+/// 「✕」，点击后从最近列表中移除这一项。返回画出的「✕」，点击和悬停按它们判断。
+fn draw_folder_rows(
+    app: &App,
+    frame: &mut Frame<'_>,
+    parts: &PickerParts,
+) -> Vec<(Rect, PickerPart)> {
+    let p = app.palette;
+    let list = parts.list;
+    if app.overlays.picker.hits.is_empty() {
+        let root = app.editor.root();
+        let other = app.state.recent.iter().any(|f| Some(f.as_path()) != root);
+        let message = if other || !app.state.recent_files.is_empty() {
+            t!("workspace-picker-no-matching-folders")
+        } else {
+            t!("workspace-picker-no-recent-folders")
+        };
+        let row = Rect::new(list.x, list.y, list.w, list.h.min(PICKER_ROW));
+        let x = list.x + PICKER_TEXT_X;
+        ui_text(frame, app, x, row, message, p.text_dim, list);
+        return Vec::new();
+    }
+
+    let mut hits = Vec::new();
+    let scroll = drawn_scroll(app.overlays.picker.scroll);
+    let parents = crate::app::parents(&app.state.recent);
+    let file_parents = crate::app::parents(&app.state.recent_files);
+    for i in parts.visible(scroll, app.overlays.picker.hits.len()) {
+        let index = app.overlays.picker.hits[i];
+        let entry = app.recent_entry(index);
+        let parent = match entry {
+            Some(Recent::Folder(_)) => parents.get(index),
+            _ => file_parents.get(index - app.state.recent.len()),
+        };
+        let (Some(entry), Some(parent)) = (entry, parent) else {
+            continue;
+        };
+        let row = parts.row(i, scroll);
+        let clip = row.intersect(list);
+        let forget = PickerPart::ForgetFolder(i);
+        let selected = i == app.overlays.picker.selected;
+        let hovered = matches!(app.pointer.hover,
+            Hover::PickerRow(r) | Hover::PickerPart(PickerPart::ForgetFolder(r)) if r == i);
+        draw_pick_row(app, frame, row, i, clip);
+        if !selected && app.pointer.hover == Hover::PickerPart(forget) {
+            frame.rect_clipped(row.inset(6.0, 1.0), p.hover, RADIUS_ROW, clip);
+        }
+
+        // 目录图标与文件列表的文件图标、输入框的放大镜在同一条竖直轴线上。
+        let cy = icon_center_y(app, row, app.fonts.ui);
+        let x = row.x + PICKER_ICON_X + (icons::FILE_WIDTH - icons::FOLDER_WIDTH) / 2.0;
+        let name = match entry {
+            Recent::Folder(folder) => {
+                if app.recent_group(folder).is_some() {
+                    icons::folders(frame, (x, cy - 6.0), p.folder, clip);
+                } else {
+                    icons::folder(frame, (x, cy - 6.0), false, p.folder, clip);
+                }
+                app.recent_title(folder)
+            }
+            Recent::File(file) => {
+                let name = winc_editor::display_name(file).into_owned();
+                draw_file_icon(frame, p, (row.x + PICKER_ICON_X, cy), &name, clip);
+                name
+            }
+        };
+
+        // 「✕」只在选中或悬停时显示，但位置始终预留，名称和上级目录不会因它出现而移动。
+        let close = Rect::new(
+            row.right() - 8.0 - BUTTON_SMALL,
+            row.y + 2.0,
+            BUTTON_SMALL,
+            row.h - 4.0,
+        );
+        if selected || hovered {
+            let over = app.pointer.hover == Hover::PickerPart(forget);
+            draw_button(frame, p, close, clip, over, false);
+            icons::close(frame, center(close), 6.5, p.text_muted, clip);
+            hits.push((close, forget));
+        }
+
+        // 查询命中的字用强调色标出；截短了的文字下标对不上，不标。上级目录放不下时截短，同名
+        // 目录保留区分彼此的部分（见 `fit_parent`）。
+        let (in_name, in_parent) = app.folder_matched(i);
+        let room = (close.x - 8.0 - (row.x + PICKER_TEXT_X)).max(0.0);
+        let shown = ellipsize(frame, &name, app.fonts.ui, room);
+        let marks = if shown.len() == name.len() {
+            in_name
+        } else {
+            Vec::new()
+        };
+        let at = (row.x + PICKER_TEXT_X, row);
+        let x = marked_label(frame, app, app.fonts.ui, at, &shown, &marks, p.text, clip);
+        let room = close.x - 8.0 - (x + 8.0);
+        if !parent.text.is_empty() && room > 20.0 {
+            let shown = fit_parent(frame, parent, app.fonts.ui_small, room);
+            let marks = if shown == parent.text {
+                in_parent
+            } else {
+                Vec::new()
+            };
+            let (at, size) = ((x + 8.0, row), app.fonts.ui_small);
+            marked_label(frame, app, size, at, &shown, &marks, p.text_dim, clip);
+        }
+    }
+    hits
+}
+
+/// 提示条与所在区域（[`App::overlay_area`]）右上角之间的距离（逻辑像素），上边和右边相同。
+const NOTICE_MARGIN: f32 = 8.0;
+/// 提示条、冲突卡片左侧图标的中心离卡片左边的距离（逻辑像素）。
+const NOTICE_ICON_X: f32 = 16.0;
+/// 提示条、冲突卡片中文字离卡片左边的距离（逻辑像素）。
+pub(crate) const NOTICE_TEXT_X: f32 = 30.0;
+/// 提示条出现时滑动的距离（逻辑像素）：从角上往下滑出来。
+const NOTICE_SLIDE: f32 = 6.0;
+
+/// 绘制右上角的提示条（出错、冲突、未保存等需要注意的消息），出现时从角上滑出并淡入；
+/// 返回提示条和按钮的矩形，没有按钮时后者为 `None`。
+pub(super) fn draw_live_notice(
+    app: &App,
+    frame: &mut Frame<'_>,
+    message: &str,
+) -> (Rect, Option<Rect>) {
+    let label = app.notice.action.as_ref().map(NoticeAction::label);
+    let busy = (app.notice.action.as_ref()).is_some_and(NoticeAction::in_progress);
+    let mark = if busy { None } else { Some(app.notice.kind) };
+    let (opacity, away) = app.notice.entering.map_or((1.0, 0.0), |clock| {
+        let t = clock.linear();
+        (1.0 - (1.0 - t).powi(2), (1.0 - t).powi(3))
+    });
+    frame.with_opacity(opacity, |frame| {
+        draw_notice(app, frame, message, label, mark, -NOTICE_SLIDE * away)
+    })
+}
+
+/// 绘制当前文档的冲突卡片：靠在右上角，左边是提醒图标和一句「已被其他程序修改」的说明，
+/// 右边依次是「比较」「使用磁盘版本」「保留当前修改」。
+///
+/// 返回卡片和各按钮的矩形；当前文档没有冲突时不绘制，返回 `None`。卡片一直显示到用户选择
+/// 为止，不会自动消失。名字太长时从中间截短。
+pub(super) fn draw_conflict(
+    app: &App,
+    frame: &mut Frame<'_>,
+) -> Option<(Rect, Vec<(Rect, ConflictAction)>)> {
+    let name = app.active_conflict()?;
+    let p = app.palette;
+    let area = app.overlay_area();
+    let font = app.fonts.ui;
+
+    let labels: Vec<f32> = ConflictAction::ALL
+        .iter()
+        .map(|a| frame.measure(FontKind::Ui, font, a.label()) + 16.0)
+        .collect();
+    let buttons_w: f32 = labels.iter().sum::<f32>() + BUTTON_GAP * (labels.len() - 1) as f32;
+    let fixed = frame.measure(
+        FontKind::Ui,
+        font,
+        &t!("workspace-conflict-modified", name = ""),
+    );
+    // 文字与按钮之间留 16，按钮右边留 8。
+    let room =
+        (area.w - 2.0 * NOTICE_MARGIN - 20.0 - NOTICE_TEXT_X - 16.0 - buttons_w - 8.0 - fixed)
+            .max(24.0);
+    let name = ellipsize(frame, &name, font, room).into_owned();
+    let message = t!("workspace-conflict-modified", name = name);
+    let text_w = frame.measure(FontKind::Ui, font, &message);
+    let width = NOTICE_TEXT_X + text_w + 16.0 + buttons_w + 8.0;
+    let top = app.overlay_top() + NOTICE_MARGIN;
+    let card = Rect::new(area.right() - NOTICE_MARGIN - width, top, width, 36.0);
+
+    draw_card(frame, p, card, RADIUS_BAR, p.popup_bg);
+    let icon = (
+        card.x + NOTICE_ICON_X,
+        text_icon_center_y(app, card, font, &message),
+    );
+    icons::warning(frame, icon, p.warning, card);
+    ui_text(
+        frame,
+        app,
+        card.x + NOTICE_TEXT_X,
+        card,
+        &message,
+        p.text,
+        card,
+    );
+
+    let mut x = card.right() - 8.0 - buttons_w;
+    let y = card.y + (card.h - BUTTON_SMALL) / 2.0;
+    let mut buttons = Vec::new();
+    for (&action, w) in ConflictAction::ALL.iter().zip(labels) {
+        let button = Rect::new(x, y, w, BUTTON_SMALL);
+        let hovered = app.pointer.hover == Hover::ConflictButton(action);
+        draw_button(frame, p, button, card, hovered, false);
+        ui_text(
+            frame,
+            app,
+            button.x + 8.0,
+            button,
+            action.label(),
+            p.accent,
+            card,
+        );
+        buttons.push((button, action));
+        x += w + BUTTON_GAP;
+    }
+    Some((card, buttons))
+}
+
+/// 绘制到期后正在原地淡出的提示条。
+pub(super) fn draw_notice_ghost(app: &App, frame: &mut Frame<'_>, ghost: &NoticeGhost) {
+    let t = ghost.clock.linear();
+    // 进行中的提示不会到期，淡出的总是带种类图标的提示。
+    frame.with_opacity(1.0 - t * t, |frame| {
+        draw_notice(
+            app,
+            frame,
+            &ghost.message,
+            ghost.label,
+            Some(ghost.kind),
+            0.0,
+        )
+    });
+}
+
+/// 绘制提示条：靠在所在区域（[`App::overlay_area`]）的右上角，上边和右边留同样的距离；查找条
+/// 打开时排在查找条下方。
+///
+/// `dy` 是动画中相对停靠位置的竖直偏移。左侧是提示种类 `mark` 的图标；为 `None` 时是转动的
+/// 图标，表示事情正在进行。
+///
+/// 消息放不下时从中间截短，使提示条不超出所在区域。带按钮的提示（如「查看输出」）把按钮放在右侧。
+/// 返回提示条和按钮的矩形，没有按钮时后者为 `None`。
+fn draw_notice(
+    app: &App,
+    frame: &mut Frame<'_>,
+    message: &str,
+    label: Option<&str>,
+    mark: Option<NoticeKind>,
+    dy: f32,
+) -> (Rect, Option<Rect>) {
+    let p = app.palette;
+    let area = app.overlay_area();
+    let button_w = label.map_or(0.0, |label| {
+        frame.measure(FontKind::Ui, app.fonts.ui, label) + 16.0 + 8.0
+    });
+    // 左侧留给图标，文字右边留 16。
+    let pad = NOTICE_TEXT_X + 16.0;
+    let room = (area.w - 2.0 * NOTICE_MARGIN - 20.0 - pad - button_w).max(0.0);
+    let message = ellipsize(frame, message, app.fonts.ui, room);
+    let width = frame.measure(FontKind::Ui, app.fonts.ui, &message) + pad + button_w;
+    // 冲突卡片、合并冲突卡片打开时排在其下方。
+    let disk = app.hits.conflict_card.as_ref().map(|(card, _)| *card);
+    let top = match app.hits.merge_card.or(disk) {
+        Some(card) => card.bottom(),
+        None => app.overlay_top(),
+    } + NOTICE_MARGIN;
+    let x = area.right() - NOTICE_MARGIN - width;
+    let rect = Rect::new(x, (top + dy).round(), width, 36.0);
+
+    // 浮层统一用白底卡片，只用图标的颜色区分提示的种类，不整块铺底色。
+    draw_card(frame, p, rect, RADIUS_BAR, p.popup_bg);
+    let size = app.fonts.ui;
+    let icon = (
+        rect.x + NOTICE_ICON_X,
+        text_icon_center_y(app, rect, size, &message),
+    );
+    match mark {
+        None => icons::refresh_turned(frame, icon, icons::spin_turn(), p.text_muted, rect),
+        Some(NoticeKind::Info) => icons::info(frame, icon, p.accent, rect),
+        Some(NoticeKind::Done) => icons::done(frame, icon, p.git_added, rect),
+        Some(NoticeKind::Warning) => icons::warning(frame, icon, p.warning, rect),
+        Some(NoticeKind::Error) => icons::error(frame, icon, p.error, rect),
+    }
+    ui_text(
+        frame,
+        app,
+        rect.x + NOTICE_TEXT_X,
+        rect,
+        &message,
+        p.text,
+        rect,
+    );
+
+    let Some(label) = label else {
+        return (rect, None);
+    };
+    let button = Rect::new(
+        rect.right() - 8.0 - (button_w - 8.0),
+        rect.y + (rect.h - BUTTON_SMALL) / 2.0,
+        button_w - 8.0,
+        BUTTON_SMALL,
+    );
+    let hovered = app.pointer.hover == Hover::NoticeButton;
+    draw_button(frame, p, button, rect, hovered, false);
+    ui_text(frame, app, button.x + 8.0, button, label, p.accent, rect);
+    (rect, Some(button))
+}

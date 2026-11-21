@@ -1,0 +1,669 @@
+## Git 命令行：查找、运行和读取结果
+
+git-unavailable-not-installed = 未找到 Git，请安装 Git 或在设置中指定 Git 程序
+git-unavailable-not-found = 找不到设置的 Git 程序「{ $program }」，请检查设置中的 Git 程序
+git-unavailable-no-developer-tools = 尚未安装命令行开发者工具
+git-version-too-old = Git { $version } 版本过低，部分操作需要 { $minimum } 或更高版本
+git-status-unreadable = 无法读取 git status 的输出
+git-status-truncated = 仓库中更改的文件过多，仅显示前 { $count } 个
+git-push-no-remote = 此仓库未配置远程仓库
+git-file-outside-repository = 文件不在 Git 仓库中
+git-run-failed = Git 运行失败
+git-run-spawn-failed = 无法运行 Git（{ $error }）
+git-trust-config-unreadable = 无法读取仓库的配置
+git-trust-required = 此仓库配置了会在 Git 操作时自动运行的程序（{ $commands }），请先信任此仓库
+git-list-separator = 、
+git-worktree-copy-invalid-glob = git.worktreeCopy 中的「{ $glob }」有误：{ $error }
+git-worktree-copy-failed = 无法复制「{ $path }」：{ $error }
+
+## 进行中的操作
+
+git-operation-merge = 合并
+git-operation-rebase = 变基
+git-operation-cherry-pick = 拣选
+git-operation-revert = 还原
+
+## 合并冲突的取舍
+
+git-conflict-accept-current = 采用当前
+git-conflict-accept-incoming = 采用传入
+git-conflict-accept-both = 保留两者
+
+## 分支菜单
+
+git-branch-checkout = 签出
+git-branch-checkout-new-worktree = 在新工作树中签出
+git-branch-new-from = 基于此分支新建分支…
+git-branch-merge-into-current = 合并到当前分支
+git-branch-rebase-current-onto = 将当前分支变基到此分支
+git-branch-delete = 删除分支
+git-branch-delete-confirm = 要删除分支「{ $name }」吗？
+git-branch-delete-confirm-detail = 仅删除本地分支，远程分支不受影响。
+git-branch-delete-confirm-button = 删除
+git-branch-force-delete-confirm = 分支「{ $name }」尚未完全合并，仍要删除吗？
+git-branch-force-delete-confirm-detail = 仅属于此分支的提交可能丢失。
+git-branch-force-delete-confirm-button = 仍要删除
+git-branch-compare-with-current = 与当前分支比较
+git-stash-group = 储藏
+git-stash-more-files = 还有 { $count } 个文件
+git-stash-more = 另有 { $count } 个储藏…
+git-stash-no-files = 此储藏中无可显示的更改
+git-stash-apply = 应用
+git-stash-pop = 应用并删除
+git-stash-drop = 删除
+git-stash-drop-confirm = 要删除储藏「{ $name }」吗？
+git-stash-gone = 此储藏已不存在
+git-stash-drop-confirm-detail = 删除后，此储藏中的更改将无法恢复。
+git-stash-drop-confirm-button = 删除
+
+## 后台的 Git 操作：做的是什么，以及做完后的提示
+
+git-op-fetch = 获取
+git-op-pull = 拉取
+git-op-push = 推送
+git-op-sync = 同步
+git-op-stash = 储藏更改
+git-op-stash-apply = 应用储藏「{ $name }」
+git-op-stash-pop = 应用并删除储藏「{ $name }」
+git-op-continue-merge = 继续合并
+git-op-continue-rebase = 继续变基
+git-op-continue-cherry-pick = 继续拣选
+git-op-continue-revert = 继续还原
+git-op-abort-merge = 中止合并
+git-op-abort-rebase = 中止变基
+git-op-abort-cherry-pick = 中止拣选
+git-op-abort-revert = 中止还原
+git-op-skip = 跳过提交
+git-op-checkout = 签出「{ $name }」
+git-op-merge = 合并「{ $name }」
+git-op-rebase-onto = 变基到「{ $name }」
+git-op-delete-branch = 删除分支「{ $name }」
+git-op-new-branch = 新建分支「{ $name }」
+git-op-new-tag = 新建标签「{ $name }」
+git-op-pull-rebase = 拉取并变基
+git-op-pull-merge = 拉取并合并
+git-op-rename-branch = 重命名分支「{ $name }」
+git-op-init = 初始化仓库
+git-op-clone = 克隆「{ $name }」
+git-op-remote-add = 添加远程仓库「{ $name }」
+git-op-remote-edit = 修改远程仓库「{ $name }」
+git-op-remote-remove = 移除远程仓库「{ $name }」
+git-op-tag-push = 推送标签「{ $name }」
+git-op-tag-delete = 删除标签「{ $name }」
+git-op-tag-delete-remote = 从远程删除标签「{ $name }」
+git-no-remote = 未配置远程仓库
+git-branch-rename = 重命名分支…
+git-tag-new-branch = 基于此标签新建分支…
+git-tag-push = 推送到远程
+git-tag-delete = 删除标签
+git-tag-delete-remote = 从远程删除
+git-tag-delete-confirm = 要删除标签「{ $name }」吗？
+git-tag-delete-confirm-detail = 仅删除本地标签，远程标签不受影响。
+git-tag-delete-remote-confirm = 要从远程仓库删除标签「{ $name }」吗？
+git-tag-delete-remote-confirm-detail = 其他协作者将无法再从远程仓库获取此标签，本地标签不受影响。
+git-tag-delete-confirm-button = 删除
+git-remotes-menu = 远程仓库
+git-remote-add = 添加远程仓库…
+git-remote-edit = 修改地址…
+git-remote-remove = 移除
+git-remote-add-title = 添加远程仓库
+git-remote-edit-title = 修改远程仓库
+git-remote-name = 名称
+git-remote-url = 地址
+git-remote-url-placeholder = https://example.com/repo.git
+git-remote-add-button = 添加
+git-remote-save-button = 保存
+git-remote-name-exists = 已存在同名的远程仓库
+git-remote-url-invalid = 地址无效
+git-remote-remove-confirm = 要移除远程仓库「{ $name }」吗？
+git-remote-remove-confirm-detail = 将删除此远程仓库的配置和远程跟踪分支。远程服务器上的内容不受影响。
+git-remote-remove-confirm-button = 移除
+git-clone-title = 克隆仓库
+git-clone-url = 地址
+git-clone-url-placeholder = https://example.com/repo.git 或 git@example.com:repo.git
+git-clone-button = 克隆
+git-clone-running = 正在克隆…
+git-clone-invalid-url = 地址无效
+git-clone-no-parent = 所选位置不存在
+git-clone-occupied = 目标目录已存在且不为空
+git-op-canceled = 已取消{ $what }
+git-question-sign-in = 登录 { $host }
+git-question-unlock-key = 解锁 SSH 私钥
+git-question-host-key = 验证 SSH 主机
+git-question-host-key-message = 首次连接此主机，请核对指纹后再连接。
+git-question-input = Git 请求输入
+git-question-confirm = Git 请求确认
+git-question-server = 服务器
+git-question-origin = 来自远端
+git-question-account = 账户
+git-question-username = 用户名
+git-question-password = 密码
+git-question-remember = 记住密码
+git-question-password-placeholder = 密码或访问令牌
+git-question-key = 私钥
+git-question-passphrase = 口令
+git-question-host = 主机
+git-question-key-type = 密钥类型
+git-question-fingerprint = 指纹
+git-question-response = 响应
+git-question-sign-in-button = 登录
+git-question-unlock-button = 解锁
+git-question-connect-button = 连接
+git-question-ok-button = 确定
+git-output-title = Git 输出
+git-output-empty = 尚未运行任何 Git 操作
+git-output-exit-code = 退出码：{ $code }
+git-output-no-exit-code = 无退出码
+git-op-busy = 请等待当前 Git 操作完成
+git-op-done = 已{ $what }
+git-op-done-summary = 已{ $what }：{ $summary }
+git-op-done-in = 已在「{ $name }」中{ $what }
+git-op-failed = 无法{ $what }：{ $error }
+git-op-failed-in = 无法在「{ $name }」中{ $what }：{ $error }
+
+## 工作树
+
+git-worktree-group = 工作树
+git-worktree-more = 另有 { $count } 个工作树…
+git-worktree-merged = 已合并
+git-worktree-detached = { $oid }（分离 HEAD）
+git-worktree-missing = 目录已不存在
+git-worktree-copied-ignored = 已复制 { $count } 个被忽略的文件
+git-worktree-open-ask = 要在哪个窗口打开工作树「{ $name }」？
+git-worktree-open-ask-detail = 在此窗口打开会关闭当前的标签页和终端，并换成该工作树的。
+git-worktree-open-new-window = 在新窗口打开
+git-worktree-open-this-window = 在此窗口打开
+git-worktree-open-remember = 不再询问
+git-worktree-open-elsewhere = 工作树「{ $name }」已在另一个窗口中打开
+git-worktree-open-elsewhere-detail = 请先关闭该窗口，再移除此工作树。
+git-worktree-switch-to-window = 切换到该窗口
+git-worktree-close-window-first = 请先关闭工作树「{ $name }」所在的窗口，再移除此工作树
+git-worktree-remove-confirm = 要移除工作树「{ $name }」吗？
+git-worktree-remove-confirm-detail = 工作树目录将移到{ common-trash }，可从{ common-trash }中恢复。
+git-worktree-remove-confirm-detail-remote = 远端主机上的工作树目录将被删除，无法恢复。
+git-worktree-remove-unreachable = 分离 HEAD 上的 { $count } 个提交不属于任何分支，移除后将无法恢复。如需保留，请先在该工作树中为其新建分支。
+git-worktree-modified-files = { $count } 个已修改的文件
+git-worktree-untracked-files = { $count } 个未跟踪的文件
+git-worktree-files-separator = 、
+git-worktree-remove-uncommitted = 此工作树中有{ $files }尚未提交。
+git-worktree-remove-button = 移除
+git-worktree-remove-delete-branch = 同时删除分支「{ $branch }」
+git-worktree-close-dialog-first = 请先关闭当前对话框，再移除工作树
+git-worktree-trash-failed = 无法移除工作树「{ $name }」：{ $error }
+git-worktree-remove-record-failed = 目录已移到{ common-trash }，但无法删除 Git 中的工作树记录（{ $error }），请稍后使用「清理失效的工作树」
+git-worktree-branch-deleted = 已删除分支「{ $branch }」
+git-worktree-branch-delete-failed = 目录已移到{ common-trash }，但无法删除分支「{ $branch }」：{ $error }
+git-op-checkout-new-worktree = 在新工作树中签出「{ $name }」
+git-op-checkout-commit-new-worktree = 在新工作树中签出 { $commit }
+git-op-prune-worktrees = 清理失效的工作树
+git-op-check-worktree = 检查工作树「{ $name }」
+git-op-remove-worktree = 移除工作树「{ $name }」
+
+## 日志的详情栏
+
+git-log-no-selection = 选择一个提交
+git-log-no-selection-detail = 在左侧选择提交以查看提交说明和更改的文件
+git-log-details-commit = 提交
+git-log-details-parents = { $count ->
+   *[other] 父提交
+}
+git-log-local-diff-title = { $name } · { $rev } ↔ 本地
+git-patch-merge = Git 不为合并提交生成补丁
+git-log-copied-patch = 已复制提交 { $commit } 的补丁
+git-log-patch-failed = 无法生成补丁：{ $error }
+git-log-details-branches = 所在分支
+git-log-details-branches-loading = 正在查找…
+git-log-details-branches-none = 不在任何分支上
+git-log-details-branches-more = 等另外 { $count } 个
+git-log-details-loading-files = 正在读取更改的文件…
+git-compare-title = 比较两个版本
+git-log-path-title = 按路径筛选
+git-log-path-label = 路径
+git-log-path-placeholder = 相对仓库根目录，例如 src/app 或 *.rs
+git-log-path-button = 筛选
+git-log-filter-date = 日期
+git-log-filter-path = 路径
+git-log-filter-branches = { $count } 个分支
+git-log-filter-authors = { $count } 位作者
+git-log-filter-paths = { $count } 个路径
+git-go-to-title = 转到提交号、分支或标签
+git-go-to-label = 目标
+git-go-to-placeholder = 提交号、分支或标签，如 a1b2c3d 或 main
+git-go-to-button = 转到
+git-go-to-invalid = 提交号、分支名和标签名不含空白，也不以「-」开头
+git-go-to-unresolved = 找不到该提交、分支或标签
+git-go-to-failed = 无法转到「{ $revision }」：{ $error }
+git-compare-revision-title = 与指定版本比较
+git-compare-commit = 提交
+git-compare-with = 比较对象
+git-compare-button = 比较
+git-compare-failed = 无法与「{ $revision }」比较：{ $error }
+git-compare-old = 旧
+git-compare-new = 新
+git-compare-no-differences = 两个版本无差异
+git-compare-comparing = 正在比较…
+git-log-hint-select-file = 选择文件
+git-log-hint-open-diff = 打开差异
+git-log-hint-return = 返回
+git-log-hint-file-list = 文件列表
+git-log-hint-exit-compare = 退出比较
+git-log-hint-click = 单击
+git-log-hint-view-commit = 查看单个提交
+git-log-hint-double-click = 双击
+git-log-hint-cmd-click = { $key } 单击
+git-log-hint-compare = 比较
+git-log-hint-go-back = 后退
+
+## 提交时间
+
+git-time-just-now = 刚刚
+git-time-minutes-ago = { $count } 分钟前
+git-time-today = 今天 { $time }
+git-time-yesterday = 昨天 { $time }
+git-time-date = { $month }月{ $day }日
+git-time-date-year = { $year }年{ $month }月{ $day }日
+
+## 提交和回滚
+
+git-commit-message-required = 请先填写提交信息
+git-commit-unresolved-conflicts = { $count } 个文件仍有未解决的冲突，请先解决
+git-commit-nothing-checked = 请先勾选要提交的文件
+git-commit-done = 已提交 { $oid }：{ $subject }
+git-commit-failed = 无法提交：{ $error }
+git-commit-done-in = 已在「{ $name }」中提交 { $oid }
+git-commit-failed-in = 无法在「{ $name }」中提交：{ $error }
+git-commit-push-others = 另外推送 { $count } 个仓库：{ $names }
+git-push-others-failed = 当前仓库已推送；其他仓库推送失败：{ $failed }
+git-commit-partial = 已提交到 { $done }；{ $name }：{ $error }
+git-commit-others-left = 已提交。其他仓库中有 { $count } 个文件未一并提交：修改上一次提交，或该仓库正在合并、变基时只提交当前仓库
+git-commit-hint-subject = 首行 { $count }/{ $limit }
+git-commit-hint-blank-line = 首行后应空一行
+git-commit-todo-confirm = 新增的内容里有 { $count } 处 TODO 或 FIXME
+git-commit-todo-confirm-detail = 仍要提交吗？
+git-commit-todo-confirm-button = 仍然提交
+git-commit-reformatted = 提交前格式化了 { $count } 个文件
+git-undo-commit-confirm = 要撤销上次提交吗？
+git-undo-commit-confirm-detail = 「{ $subject }」中的更改将保留在暂存区，提交信息将放回输入框。
+git-undo-commit-confirm-button = 撤销提交
+git-force-push-confirm = 要强制推送「{ $branch }」吗？
+git-force-push-confirm-detail = 上游的 { $count } 个提交将被本地改写后的版本替换。若上游已有其他新提交，推送将被拒绝。
+git-force-push-confirm-button = 强制推送
+git-push-confirm-publish = 要发布到 { $remote } 吗？
+git-push-confirm-publish-detail = 「{ $branch }」将推送到 { $target }，并设为上游分支。
+git-push-confirm-publish-button = 发布
+git-push-confirm-push = 要推送到 { $upstream } 吗？
+git-push-confirm-push-detail = { $count } 个提交将推送到 { $target }。
+git-push-confirm-review = 查看提交
+git-push-confirm-more = 另有 { $count } 个提交
+git-push-confirm-push-button = 推送
+git-push-confirm-sync = 要与 { $upstream } 同步吗？
+git-push-confirm-sync-detail = 将从 { $target } 拉取 { $behind } 个提交，并推送 { $ahead } 个提交。
+git-push-confirm-sync-button = 同步
+git-push-form-title = 推送 { $branch }
+git-push-form-title-upto = 推送 { $branch } 截至 { $commit } 的提交
+git-push-form-remote = 远程
+git-push-form-branch = 分支
+git-push-form-commits = 提交
+git-push-form-tags = 推送标签
+git-push-form-tags-hint = 本地的全部标签
+git-push-form-pushing = 正在推送…
+git-push-form-nothing = 没有新的提交
+git-push-form-branch-invalid = 分支名无效
+git-pull-form-title = 拉取到 { $branch }
+git-pull-form-button = 拉取
+git-pull-form-rebase = 变基
+git-pull-form-rebase-hint = 本地提交放到拉取的提交之后
+git-pull-form-pulling = 正在拉取…
+git-pull-form-branch-missing = 本地没有这个远程分支，请先获取
+git-commit-push-confirm = 要提交并推送吗？
+git-commit-push-confirm-scope = 将 { $count } 个文件提交到「{ $branch }」，然后推送到上游。
+git-commit-push-confirm-detail = 提交后将推送到上游分支。
+git-commit-push-confirm-button = 提交并推送
+git-commit-sync-confirm = 要提交并同步吗？
+git-commit-sync-confirm-scope = 将 { $count } 个文件提交到「{ $branch }」，然后与上游同步：先拉取，再推送。
+git-commit-sync-confirm-detail = 提交后将与上游同步：先拉取，再推送。
+git-commit-sync-confirm-button = 提交并同步
+git-undo-commit-done = 已撤销提交 { $oid }，更改保留在暂存区
+git-undo-commit-done-in = 已在「{ $name }」中撤销提交 { $oid }
+git-undo-commit-failed = 无法撤销提交：{ $error }
+git-commit-partial-not-utf8 = 「{ $name }」不是 UTF-8 文本，无法仅提交部分更改
+git-rollback-nothing-checked = 请先勾选要回滚的文件
+git-stage-partial-not-utf8 = 「{ $name }」不是 UTF-8 文本，无法仅暂存部分更改
+git-stage-failed = 无法更新暂存区：{ $error }
+git-stage-nothing = 当前文件没有未暂存的更改
+git-ignore-done = 已加入 .gitignore：{ $pattern }
+git-ignore-failed = 无法写入 .gitignore：{ $error }
+git-skip-confirm = 要跳过此提交吗？
+git-skip-confirm-detail = 此提交的更改和已解决的冲突将被丢弃，然后继续处理其后的提交。
+git-skip-confirm-button = 跳过提交
+git-abort-confirm = 要中止{ $operation }吗？
+git-abort-confirm-detail = 工作区将恢复到操作开始前的状态，已解决的冲突将被丢弃。
+git-abort-confirm-button = 中止{ $operation }
+git-rollback-confirm-one = 要回滚「{ $name }」的更改吗？
+git-rollback-confirm-many = 要回滚 { $count } 个文件的更改吗？
+git-rollback-confirm-detail = 已跟踪的文件将恢复为上次提交时的内容，未跟踪的文件将移到{ common-trash }。
+git-rollback-confirm-detail-remote = 已跟踪的文件将恢复为上次提交时的内容，未跟踪的文件将被删除，无法恢复。
+git-rollback-confirm-button = 回滚
+git-rollback-file-failed = 无法回滚「{ $name }」：{ $error }
+git-rollback-done = 已回滚 { $count } 个文件
+git-rollback-failed = 无法回滚：{ $error }
+git-rollback-done-in = 已在「{ $name }」中回滚 { $count } 个文件
+git-rollback-failed-in = 无法在「{ $name }」中回滚：{ $error }
+git-read-file-failed = 无法读取「{ $name }」：{ $error }
+
+## 仓库状态和文件的差异
+
+git-unusable = 无法使用 Git：{ $error }
+git-no-repository-detail = 初始化后可以在这里查看更改、提交和同步
+git-no-repository-clone = 克隆仓库…
+git-not-a-repository = 当前目录不是 Git 仓库
+git-not-on-branch = 当前不在任何分支上，请先签出一个分支
+git-no-file-in-tab = 当前标签页未关联文件
+git-diff-title = { $name } · 差异
+git-diff-submodule = 「{ $name }」是子模块，不显示差异
+git-diff-head-unreadable = 无法读取「{ $name }」在上次提交中的版本：{ $error }
+git-diff-too-large = 「{ $name }」过大，不显示差异
+git-diff-binary = 「{ $name }」是二进制文件，不显示差异
+git-diff-identical = 「{ $name }」与上次提交时相同
+git-diff-line-endings-only = 「{ $name }」与上次提交时只有换行符不同
+git-diff-side-worktree-deleted = 工作区 · 已删除
+git-diff-side-head-missing = HEAD · 文件不存在
+
+## 信任仓库的配置
+
+git-trust-confirm = 要信任仓库「{ $name }」吗？
+git-trust-confirm-detail = 此仓库配置了以下程序，将在提交、推送等 Git 操作时自动运行。请仅信任来源可靠的仓库。不信任时仍显示更改状态，但提交、切换分支等需运行这些程序的操作不可用。
+git-trust-more = ……共 { $count } 项
+git-trust-deny = 不信任
+git-trust-allow = 信任
+
+## 提交视图
+
+git-commit-view-problem = { $problem }，请点击刷新按钮重试
+git-commit-view-loading = 正在读取仓库状态…
+git-commit-view-empty = 暂无待提交的更改
+git-commit-repository-current = 当前
+git-commit-group-quiet = 没有更改的仓库
+git-commit-empty-in-sync = 已与上游分支同步
+git-commit-empty-ahead = 比上游分支领先 { $count } 个提交
+git-commit-empty-behind = 比上游分支落后 { $count } 个提交
+git-commit-empty-diverged = 比上游分支领先 { $ahead } 个、落后 { $behind } 个提交
+git-commit-empty-unpublished = 此分支尚未发布到远程
+git-operation-banner = 正在{ $operation }
+git-operation-banner-resolved = 正在{ $operation } · 冲突已解决
+git-operation-banner-conflicts = 正在{ $operation } · { $count } 个文件有冲突
+git-operation-abort = 中止
+git-commit-message-placeholder = 提交信息（{ $key } 提交）
+git-commit-message-amend-placeholder = 修改后的提交信息
+git-branch-picker-placeholder = 搜索或新建分支
+git-branch-picker-new = 新建分支
+git-branch-picker-new-worktree = 新建工作树
+git-branch-picker-create-row = 新建分支「{ $name }」
+git-branch-picker-current = 当前
+git-location-picker-placeholder = 搜索仓库
+git-location-picker-empty = 无匹配的仓库
+git-worktree-picker-placeholder = 搜索工作树
+git-worktree-picker-empty = 无匹配的工作树
+git-location-main-worktree = 主工作树
+git-location-only-one = 当前目录只有一个仓库和工作树
+git-location-this-window = 在此窗口中打开
+git-location-new-window = 在新窗口中打开
+git-location-remove = 移除工作树…
+git-location-prune = 清理失效的工作树
+git-tip-other-worktrees = 其他 { $count } 个工作树有未提交的更改
+git-tip-fetch = 获取远程更新
+git-tip-in-sync = 获取远程更新（已与 { $upstream } 同步）
+git-tip-push = 推送 { $count } 个提交到 { $upstream }
+git-tip-pull = 从 { $upstream } 拉取 { $count } 个提交
+git-tip-both = 与 { $upstream } 同步：拉取 { $behind } 个提交，推送 { $ahead } 个提交
+git-tip-publish = 发布分支：推送到远程仓库并设置上游
+git-switch-dirty = 签出「{ $branch }」前如何处理未提交的更改？
+git-switch-dirty-detail = 「{ $current }」上有 { $count } 个文件的更改尚未提交。
+git-switch-carry = 迁移更改
+git-switch-stash = 储藏并签出
+git-switch-carry-conflict = 已签出「{ $branch }」，部分更改存在冲突，已在工作区中标记；原更改保留在储藏中
+git-switch-carry-unapplied = 已签出「{ $branch }」，但无法应用更改，更改保留在储藏中：{ $error }
+git-carry-conflict = { $what }完成，部分未提交的更改与拉取到的内容冲突，已在工作区中标记；原更改保留在储藏中
+git-carry-kept = { $what }完成，但未提交的更改未能恢复，已保留在储藏中
+git-switch-failed-restored = { $error }（未提交的更改已恢复）
+git-switch-failed-stashed = { $error }（未提交的更改已储藏，可从储藏列表恢复）
+git-switch-stash-message = 切换分支前「{ $branch }」上的更改
+git-commit-button-nothing = 暂无待提交的更改
+git-branch-picker-empty = 无匹配的分支
+git-branch-picker-recent = 最近
+git-branch-picker-other = 本地
+git-branch-picker-remote = 远程
+git-commit-button = 提交
+git-commit-button-files = 提交 { $count } 个文件
+git-commit-button-all = 提交全部
+git-commit-push-button = 提交并推送…
+git-commit-amend = 修改上次提交
+git-commit-into-fixup = 修正到 { $commit }
+git-commit-into-squash = 压缩到 { $commit }
+git-commit-into-pushed = 需要强制推送
+git-commit-undo = 撤销
+git-commit-next-push = 推送
+git-commit-next-pull = 拉取
+git-commit-next-both = 同步
+git-commit-next-publish = 发布分支
+git-commit-button-amend = 修改提交
+git-commit-button-rebase = 提交并变基
+git-commit-button-committing = 正在提交…
+git-commit-button-committed = 已提交 { $oid }
+git-commit-button-continue-rebase = 继续变基
+git-commit-button-finish-merge = 完成合并
+git-commit-button-finish-cherry-pick = 完成拣选
+git-commit-button-finish-revert = 完成还原
+
+## 日志
+
+git-log-filter-placeholder = 按说明或提交号筛选
+git-log-filter-placeholder-key = 按说明或提交号筛选（{ $key }）
+git-log-all-branches = 全部分支
+git-log-filter-all = 全部
+git-log-filter-branch = 分支
+git-log-branch-picker-placeholder = 搜索分支名
+git-log-filter-author = 作者
+git-log-filter-file = 文件 { $path }
+git-log-clear-filter = 清除筛选
+git-log-refreshing = 正在刷新…
+git-log-refreshed = 已刷新日志
+git-log-loading = 正在读取…
+git-log-commit-count = { $count }{ $more } 个提交
+git-log-uncommitted = 未提交的更改
+git-log-uncommitted-files = { $count } 个文件
+git-log-error = 无法读取提交
+git-log-loading-commits = 正在读取提交…
+git-log-no-matches = 无符合筛选条件的提交
+git-log-no-matches-detail = 请尝试更换分支、作者或关键词
+git-log-empty = 暂无提交
+git-log-empty-detail = 提交后将显示在此处
+
+## 文件被其他程序修改时的冲突
+
+git-disk-conflict-compare = 比较
+git-disk-conflict-take-disk = 使用磁盘版本
+git-disk-conflict-keep-mine = 保留当前修改
+git-disk-conflict-kept-mine = 已保留当前修改，下次保存时将覆盖磁盘上的版本
+git-disk-conflict-side-disk = 磁盘上的版本
+git-disk-conflict-side-unsaved = 未保存的修改
+git-disk-conflict-identical = 「{ $name }」与磁盘上的版本内容相同，冲突已解除
+git-disk-conflict-compare-title = 比较：{ $name }
+git-disk-conflict-took-disk-key = 「{ $name }」已改用磁盘上的版本，按 { $key } 可恢复未保存的修改
+git-disk-conflict-took-disk = 「{ $name }」已改用磁盘上的版本，撤销可恢复未保存的修改
+git-disk-conflict-reloaded = 已重新加载「{ $name }」，未保存的修改已放弃
+git-disk-conflict-overwrite = 覆盖
+git-disk-conflict-modified = 「{ $name }」已被其他程序修改
+git-disk-conflict-modified-detail = 保存将以本窗口中的内容覆盖磁盘上的版本，建议先比较两者的差异。
+git-disk-conflict-choose-first = 「{ $name }」已被其他程序修改，请先在右上角的冲突提示中选择要保留的版本
+
+## 新建分支、新建工作树的对话框
+
+git-form-base-current-branch = { $name }（当前分支）
+git-form-base-current-commit = 当前提交
+git-form-base-commit = 提交 { $commit }
+git-form-base-existing-branch = 现有分支
+git-form-base-current = 当前分支
+git-form-name-leading-dash = 分支名称不得以「-」开头
+git-form-name-exists = 已存在同名的分支
+git-form-current-branch-held = 当前分支无法在其他工作树中签出
+git-form-stale-worktree = 已被失效的工作树签出，请先清理
+git-form-other-system = 所选位置与仓库不在同一系统中
+git-form-create = 创建
+git-form-open = 打开
+git-op-new-worktree = 新建工作树「{ $name }」
+
+## 日志中提交的操作
+
+git-op-checkout-commit = 签出 { $commit }
+git-op-cherry-pick = 拣选 { $commit }
+git-op-revert = 还原 { $commit }
+git-op-reset = 将「{ $branch }」重置到 { $commit }
+git-op-reset-hard = 将「{ $branch }」硬重置到 { $commit }
+git-op-stash-drop = 删除储藏「{ $name }」
+git-log-copied-oid = 已复制提交号 { $commit }
+git-log-copied-short-oid = 已复制短提交号 { $commit }
+git-log-copied-message = 已复制提交说明
+git-log-detach-confirm = 要签出提交 { $commit } 吗？
+git-tag-checkout-confirm = 要签出标签「{ $name }」吗？
+git-branch-picker-tags = 标签
+git-log-detach-confirm-detail = 签出后将处于分离 HEAD 状态，不在任何分支上；在此期间的提交需要新建分支才能保留。
+git-log-detach-confirm-button = 签出
+git-log-reset-hard-confirm = 要将「{ $branch }」硬重置到 { $commit } 吗？
+git-log-reset-hard-confirm-detail = 工作区和暂存区中所有未提交的更改都将丢弃，「{ $branch }」上此提交之后的提交也将不再属于该分支。此操作无法撤销。
+git-log-reset-hard-confirm-button = 硬重置
+
+## 日志标签和文件历史
+
+git-log-title = Git 日志
+git-history-title = { $name } · 历史
+git-lines-history-title = { $name }:{ $start }–{ $end } · 历史
+git-log-target-not-loaded = 目标提交尚未加载，请向下滚动列表后重试
+git-log-parent-not-loaded = 父提交尚未加载，请向下滚动列表后重试
+git-log-no-parent = 这是第一个提交，没有父提交
+git-log-no-child = 列表里没有它的子提交
+git-log-diff-back = 返回日志
+git-log-diff-hide-files = 收起文件栏
+git-log-diff-show-files = 展开文件栏
+git-next-file = 已切换到下一个文件：{ $name }（{ $index }/{ $total }）
+git-previous-file = 已切换到上一个文件：{ $name }（{ $index }/{ $total }）
+git-press-again-next-file = 已是最后一处更改。再次执行可切换到下一个文件：{ $name }
+git-press-again-previous-file = 已是第一处更改。再次执行可切换到上一个文件：{ $name }
+git-diff-side-commit-missing = { $commit } · 文件不存在
+git-diff-side-before-root = 空 · 根提交之前
+
+## 解决合并冲突
+
+git-merge-side-current = 当前
+git-merge-side-incoming = 传入
+git-merge-side-base = 共同祖先
+git-merge-compare = 比较
+git-merge-previous = 上一处
+git-merge-next = 下一处
+git-merge-mark-resolved = 标记为已解决
+git-merge-accept-all-current = 全部采用当前
+git-merge-accept-all-incoming = 全部采用传入
+git-merge-card-conflicts = { $count } 处冲突
+git-merge-card-resolved = 冲突均已解决
+git-merge-compare-title = { $name } · 冲突 { $index }
+git-merge-all-resolved = 所有冲突均已解决，保存后将标记为已解决
+git-merge-picked-current = 已采用当前，剩余 { $count } 处冲突
+git-merge-picked-incoming = 已采用传入，剩余 { $count } 处冲突
+git-merge-picked-both = 已保留两者，剩余 { $count } 处冲突
+git-merge-picked-all-current = { $count } 处冲突均已采用当前
+git-merge-picked-all-incoming = { $count } 处冲突均已采用传入
+git-merge-picked-all-both = { $count } 处冲突均已保留两者
+git-merge-no-next = 已是最后一处冲突
+git-merge-no-previous = 已是第一处冲突
+git-merge-unresolved-left = 仍有未解决的冲突
+git-op-mark-resolved = 标记「{ $name }」为已解决
+
+## 编辑器中的行内更改
+
+git-change-line = 第 { $line } 行
+git-change-lines = 第 { $start }–{ $end } 行
+git-change-added = 新增 · { $lines }
+git-change-modified = 修改 · { $lines }
+git-change-deleted-at-start = 删除 { $count } 行 · 文件开头
+git-change-deleted-after = 删除 { $count } 行 · 第 { $line } 行之后
+git-change-reverted = 已回滚更改
+git-change-no-next = 已是最后一处更改
+git-no-next-file = 已是最后一个文件
+git-no-previous-file = 已是第一个文件
+git-change-no-previous = 已是第一处更改
+git-change-none-at-caret = 光标所在行无更改
+
+## 差异视图
+
+git-diff-side-worktree = 工作区
+git-diff-side-worktree-unsaved = 工作区 · 未保存
+git-diff-identical-sides = 两侧内容相同
+git-diff-none-at-caret = 光标处无更改
+git-diff-revert-failed = 无法回滚更改：{ $error }
+
+## 更改的弹出窗口
+
+git-change-popup-added = 新增 { $count } 行
+git-change-popup-deleted = 删除 { $count } 行
+git-change-popup-modified = 修改 { $count } 行
+git-change-popup-not-in-head = 新文件，上次提交中不存在
+git-change-popup-more-lines = 另有 { $count } 行未显示
+
+## 提交视图的文件列表
+
+git-commit-group-changes = 更改
+git-commit-group-staged = 已暂存的更改
+git-commit-group-conflicts = 冲突
+git-commit-group-untracked = 未跟踪的文件
+git-commit-open-deleted = 文件已删除，无法打开
+git-commit-blocker-conflicts = { $count } 个文件仍有未解决的冲突
+git-log-files-changed = 更改了 { $count } 个文件
+git-log-file-binary = 二进制
+
+## 逐行追溯
+
+git-blame-not-in-repository = 当前文件不在 Git 仓库中，无法逐行追溯
+git-blame-diff-unavailable = 此差异不是 Git 中的版本，无法逐行追溯
+git-blame-failed = 无法逐行追溯：{ $error }
+git-blame-uncommitted = 尚未提交的更改
+git-blame-line-uncommitted = 此行尚未提交
+git-rebase-not-on-branch = 此提交不在当前分支上
+git-rebase-has-merges = 此提交之后有合并提交，无法改写历史
+git-rebase-moved = 当前分支在此期间有了变化，请重新操作
+git-op-rebase = 交互式变基
+git-op-fixup = 修正到 { $commit }
+git-op-squash-into = 压缩到 { $commit }
+git-op-rebase-load = 读取提交
+git-rebase-title = 交互式变基
+git-rebase-pick = 保留
+git-rebase-reword = 改写
+git-rebase-edit = 暂停修改
+git-rebase-squash = 压缩
+git-rebase-fixup = 修正
+git-rebase-drop = 丢弃
+git-rebase-button = 开始变基
+git-rebase-first-squash = 第一个保留的提交无法压缩或修正
+git-rebase-all-dropped = 至少需要保留一个提交
+git-rebase-empty-message = 改写的提交信息不得为空
+git-rebase-stopped = 变基已暂停，修改完成后请点击「继续变基」
+git-rebase-pushed-warning = 其中 { $count } 个提交已推送到远程，变基后需要强制推送
+git-rebase-message-placeholder = 将提交设为「改写」后，可在此编辑提交信息
+git-reword-title = 编辑提交说明
+git-reword-commit = 提交
+git-reword-message = 说明
+git-reword-button = 保存
+git-reword-pushed-warning = 此提交已推送到远程，保存后需要强制推送
+git-op-reword = 编辑提交说明
+git-op-drop-commit = 删除提交 { $commit }
+git-drop-commit-confirm = 要删除提交「{ $subject }」吗？
+git-drop-commit-confirm-detail = 此提交的更改将从当前分支移除。
+git-drop-commit-confirm-later = 之后的 { $count } 个提交将重新应用。
+git-drop-commit-confirm-pushed = 此提交已推送到远程，删除后需要强制推送。
+git-drop-commit-confirm-button = 删除提交
+git-merge-three-pane = 三栏合并
+git-merge-panes-not-utf8 = 无法显示「{ $name }」的三栏合并：文件不是 UTF-8 编码
+git-merge-close-three-pane = 退出三栏
+git-merge-side-result = 结果
+git-rebase-hint = ↑↓ 选择 · { $alt }↑↓ 移动 · P R E S F D 设置操作
+git-merge-conflict-title = 冲突 { $index } / { $count }
+git-merge-edit-conflict = 手动编辑

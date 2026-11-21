@@ -1,0 +1,855 @@
+//! `keymap` 的测试：三个系统上绑定表不冲突、组合键等第二段、「快捷键」页的行合并与搜索，
+//! 差异标签接手的命令清单，以及输入法接管的按键。
+
+use super::*;
+
+#[test]
+fn terminal_switching_uses_one_key_set_and_leaves_program_paging() {
+    for os in ALL_OS {
+        let cmd = if os == Os::Mac {
+            Mods::META
+        } else {
+            Mods::CTRL
+        };
+        for (ch, action) in [('[', Action::PreviousTerminal), (']', Action::NextTerminal)] {
+            assert_eq!(
+                runs(os, cmd | Mods::SHIFT, KeyCode::Char(ch), Context::Terminal),
+                Some(action)
+            );
+        }
+        // macOS 上编辑区沿用同一组键切换编辑区标签；其他系统上这组键在编辑区用于折叠。
+        for (ch, tab, fold) in [
+            ('[', Action::PreviousTab, Action::Fold),
+            (']', Action::NextTab, Action::Unfold),
+        ] {
+            assert_eq!(
+                runs(os, cmd | Mods::SHIFT, KeyCode::Char(ch), Context::Editor),
+                Some(if os == Os::Mac { tab } else { fold })
+            );
+        }
+        for key in [KeyCode::PageUp, KeyCode::PageDown] {
+            assert_eq!(press(os, Mods::CTRL, key, Context::Terminal), Lookup::None);
+        }
+        for (index, action) in Action::TERMINAL_FOCUS.into_iter().enumerate() {
+            assert_eq!(action.terminal_index(), Some(index));
+            assert!(ACTIONS.contains(&action));
+            assert_eq!(
+                runs(
+                    os,
+                    if os == Os::Mac {
+                        Mods::CTRL
+                    } else {
+                        Mods::CTRL | Mods::SHIFT
+                    },
+                    KeyCode::Char(char::from(b'1' + index as u8)),
+                    Context::Terminal
+                ),
+                Some(action)
+            );
+        }
+    }
+}
+
+#[test]
+fn terminal_clipboard_keys_follow_each_system() {
+    use Action::{TerminalCopy, TerminalPaste};
+    let (ctrl, shift) = (Mods::CTRL, Mods::SHIFT);
+    let (c, v) = (KeyCode::Char('c'), KeyCode::Char('v'));
+    let shared = [
+        (ctrl | shift, c, TerminalCopy),
+        (ctrl, KeyCode::Insert, TerminalCopy),
+        (ctrl | shift, v, TerminalPaste),
+        (shift, KeyCode::Insert, TerminalPaste),
+    ];
+    for os in [Os::Windows, Os::Linux] {
+        for (mods, key, action) in shared {
+            assert_eq!(
+                runs(os, mods, key, Context::Terminal),
+                Some(action),
+                "{os:?}"
+            );
+        }
+        // 编辑区的复制、粘贴不变。
+        assert_eq!(runs(os, ctrl, v, Context::Editor), Some(Action::Paste));
+    }
+    // Windows 上单按 Ctrl 的 C、V 也是复制、粘贴；Linux 上留给程序。
+    assert_eq!(
+        runs(Os::Windows, ctrl, c, Context::Terminal),
+        Some(TerminalCopy)
+    );
+    assert_eq!(
+        runs(Os::Windows, ctrl, v, Context::Terminal),
+        Some(TerminalPaste)
+    );
+    for key in [c, v] {
+        assert_eq!(press(Os::Linux, ctrl, key, Context::Terminal), Lookup::None);
+    }
+    assert_eq!(
+        runs(Os::Mac, Mods::META, c, Context::Terminal),
+        Some(TerminalCopy)
+    );
+    assert_eq!(
+        runs(Os::Mac, Mods::META, v, Context::Terminal),
+        Some(TerminalPaste)
+    );
+}
+
+#[test]
+fn filtered_bindings_do_not_reserve_a_chord_prefix() {
+    let first = Stroke {
+        key: KeyCode::Char('k'),
+        mods: Mods::META,
+    };
+    let table = [Binding {
+        action: Action::KeyboardShortcuts,
+        first,
+        second: Some(Stroke {
+            key: KeyCode::Char('s'),
+            mods: Mods::META,
+        }),
+        when: When::Global,
+    }];
+    assert_eq!(
+        lookup(&table, first, None, Context::Terminal),
+        Lookup::Chord
+    );
+    assert_eq!(
+        lookup_allowed(&table, first, None, Context::Terminal, |_| false),
+        Lookup::None
+    );
+}
+
+const ALL_OS: [Os; 3] = [Os::Mac, Os::Windows, Os::Linux];
+
+/// VS Code 方案在 `os` 上的绑定表；下面逐键检查的测试都针对这套方案。
+fn bindings(os: Os) -> Vec<Binding> {
+    Preset::VsCode.bindings(os)
+}
+
+fn press(os: Os, mods: Mods, key: KeyCode, context: Context) -> Lookup {
+    lookup(&bindings(os), Stroke { key, mods }, None, context)
+}
+
+fn runs(os: Os, mods: Mods, key: KeyCode, context: Context) -> Option<Action> {
+    match press(os, mods, key, context) {
+        Lookup::Run(actions) => actions.first().copied(),
+        _ => None,
+    }
+}
+
+#[test]
+fn no_two_bindings_fight_over_a_key() {
+    for (os, preset) in ALL_OS
+        .into_iter()
+        .flat_map(|os| Preset::ALL.map(|p| (os, p)))
+    {
+        let table = preset.bindings(os);
+        for (i, a) in table.iter().enumerate() {
+            for b in &table[i + 1..] {
+                let same_key = a.first == b.first && a.second == b.second;
+                if !same_key || a.when.mask() & b.when.mask() == 0 {
+                    continue;
+                }
+                // 范围重叠时，前面那条的范围必须更小（优先匹配），且两者不能完全相同；
+                // 前一个执行不了时才执行后一个的除外。
+                let narrower = a.when.mask() & !b.when.mask() == 0 && a.when != b.when;
+                let fallback = (a.action, b.action)
+                    == (Action::RemoveSecondaryCursors, Action::ClearWordHighlights);
+                assert!(
+                    narrower || fallback || a.action == b.action,
+                    "{os:?}: {} 同时是 {:?}（{:?}）和 {:?}（{:?}）",
+                    a.label(os),
+                    a.action,
+                    a.when,
+                    b.action,
+                    b.when
+                );
+            }
+            // 组合键的第一段不能同时对应一个命令，否则永远等不到第二段。终端里自己的单键
+            // （⌘K 清屏）例外：在终端里本来就不等第二段，单键优先（`lookup`）。
+            if a.second.is_some() {
+                assert!(
+                    !table.iter().any(|b| b.first == a.first
+                        && b.second.is_none()
+                        && b.when != When::Terminal
+                        && b.when.mask() & a.when.mask() != 0),
+                    "{os:?}: {} 的第一下自己也是命令",
+                    a.label(os)
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn every_action_is_listed_once_in_order() {
+    for (i, a) in ACTIONS.iter().enumerate() {
+        assert!(!ACTIONS[i + 1..].contains(a), "{a:?}");
+    }
+    for os in ALL_OS {
+        for preset in Preset::ALL {
+            for b in preset.bindings(os) {
+                assert!(ACTIONS.contains(&b.action), "{:?}", b.action);
+            }
+        }
+    }
+}
+
+#[test]
+fn zoom_keys_are_separate_from_font_size_and_work_in_the_terminal() {
+    let (ctrl, shift, alt) = (Mods::CTRL, Mods::SHIFT, Mods::ALT);
+    for (os, mods) in [
+        (Os::Mac, ctrl | alt),
+        (Os::Windows, alt | shift),
+        (Os::Linux, ctrl | alt | shift),
+    ] {
+        for context in [Context::Editor, Context::Terminal] {
+            let table = Preset::Idea.bindings(os);
+            let run = |key| match lookup(
+                &table,
+                Stroke {
+                    key: KeyCode::Char(key),
+                    mods,
+                },
+                None,
+                context,
+            ) {
+                Lookup::Run(actions) => actions.first().copied(),
+                _ => None,
+            };
+            assert_eq!(run('='), Some(Action::ZoomIn), "{os:?}");
+            assert_eq!(run('-'), Some(Action::ZoomOut), "{os:?}");
+            assert_eq!(run('0'), Some(Action::ResetZoom), "{os:?}");
+        }
+    }
+}
+
+#[test]
+fn vscode_key_labels_per_system() {
+    let (cmd, ctrl, shift, alt) = (Mods::META, Mods::CTRL, Mods::SHIFT, Mods::ALT);
+    let label = |os: Os, action: Action| {
+        bindings(os)
+            .iter()
+            .filter(|b| b.action == action)
+            .map(|b| b.label(os))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(label(Os::Mac, Action::ShowCommands), ["⇧⌘P", "F1"]);
+    // 多光标的默认键位。
+    assert_eq!(label(Os::Mac, Action::AddCursorBelow), ["⌥⌘↓"]);
+    assert_eq!(label(Os::Windows, Action::AddCursorAbove), ["Ctrl+Alt+↑"]);
+    assert_eq!(label(Os::Mac, Action::NextDifference)[0], "F7");
+    assert_eq!(label(Os::Mac, Action::PreviousDifference)[0], "⇧F7");
+    assert_eq!(label(Os::Mac, Action::CloseTerminal), ["⌘W"]);
+    assert_eq!(label(Os::Windows, Action::CloseTerminal), ["Ctrl+Shift+W"]);
+    assert_eq!(label(Os::Linux, Action::CloseTerminal), ["Ctrl+Shift+W"]);
+    assert_eq!(label(Os::Linux, Action::AddCursorAbove), ["Shift+Alt+↑"]);
+    assert_eq!(label(Os::Mac, Action::AddNextOccurrence), ["⌘D"]);
+    assert_eq!(label(Os::Mac, Action::SkipToNextOccurrence), ["⌘K ⌘D"]);
+    assert_eq!(label(Os::Mac, Action::SelectAllOccurrences), ["⇧⌘L"]);
+    assert_eq!(
+        label(Os::Windows, Action::SelectAllOccurrences),
+        ["Ctrl+Shift+L"]
+    );
+    assert_eq!(label(Os::Mac, Action::RemoveSecondaryCursors), ["⎋"]);
+    assert_eq!(label(Os::Mac, Action::AddCursorsToLineEnds), ["⌥⇧I"]);
+    assert_eq!(label(Os::Mac, Action::CursorUndo), ["⌘U"]);
+    assert_eq!(label(Os::Mac, Action::ColumnSelectDown), ["⌥⇧⌘↓"]);
+    assert_eq!(
+        label(Os::Windows, Action::ColumnSelectLeft),
+        ["Ctrl+Shift+Alt+←"]
+    );
+    assert!(label(Os::Linux, Action::ColumnSelectUp).is_empty());
+    assert_eq!(label(Os::Mac, Action::SelectAllMatches), ["⌥↩"]);
+    assert_eq!(
+        label(Os::Windows, Action::ShowCommands),
+        ["Ctrl+Shift+P", "F1"]
+    );
+    assert_eq!(label(Os::Mac, Action::Settings), ["⌘,"]);
+    assert_eq!(label(Os::Windows, Action::Settings), ["Ctrl+,"]);
+    assert_eq!(label(Os::Linux, Action::Settings), ["Ctrl+,"]);
+    assert_eq!(label(Os::Mac, Action::Format), ["⌥⇧F"]);
+    assert_eq!(label(Os::Linux, Action::Format), ["Ctrl+Shift+I"]);
+    assert_eq!(label(Os::Mac, Action::FormatSelection), ["⌘K ⌘F"]);
+    assert_eq!(label(Os::Mac, Action::GoBack), ["⌃-"]);
+    assert_eq!(label(Os::Windows, Action::GoBack), ["Alt+←"]);
+    assert_eq!(label(Os::Linux, Action::GoBack), ["Ctrl+Alt+-"]);
+    assert_eq!(label(Os::Mac, Action::CopyPath), ["⌥⌘C", "⌘K ⌥⌘C"]);
+    assert_eq!(label(Os::Linux, Action::RevealInFinder), ["Ctrl+Alt+R"]);
+    assert_eq!(label(Os::Windows, Action::CloseTab), ["Ctrl+F4", "Ctrl+W"]);
+    assert!(label(Os::Mac, Action::OpenFolder).is_empty());
+    assert_eq!(label(Os::Linux, Action::OpenFolder), ["Ctrl+K Ctrl+O"]);
+    assert_eq!(label(Os::Mac, Action::OpenRecent), ["⌃R"]);
+    assert_eq!(label(Os::Windows, Action::OpenRecent), ["Ctrl+R"]);
+    assert_eq!(label(Os::Mac, Action::NextTab), ["⌥⌘→", "⇧⌘]"]);
+    assert!(label(Os::Windows, Action::Quit).is_empty());
+    assert_eq!(label(Os::Mac, Action::JoinLines), ["⌃J"]);
+    assert!(label(Os::Windows, Action::JoinLines).is_empty());
+    assert_eq!(label(Os::Mac, Action::TrimTrailingWhitespace), ["⌘K ⌘X"]);
+    assert_eq!(
+        label(Os::Linux, Action::TrimTrailingWhitespace),
+        ["Ctrl+K Ctrl+X"]
+    );
+    assert_eq!(label(Os::Mac, Action::JumpToBracket), ["⇧⌘\\"]);
+    assert_eq!(label(Os::Mac, Action::Fold), ["⌥⌘["]);
+    assert_eq!(label(Os::Windows, Action::Unfold), ["Ctrl+Shift+]"]);
+    assert_eq!(label(Os::Mac, Action::FoldAll), ["⌘K ⌘0"]);
+    assert_eq!(label(Os::Linux, Action::FoldLevel3), ["Ctrl+K Ctrl+3"]);
+    assert_eq!(label(Os::Windows, Action::JumpToBracket), ["Ctrl+Shift+\\"]);
+    assert_eq!(label(Os::Mac, Action::ExpandSelection), ["⌃⇧⌘→", "⌃⇧→"]);
+    assert_eq!(label(Os::Linux, Action::ShrinkSelection), ["Shift+Alt+←"]);
+    assert!(label(Os::Mac, Action::SortLinesAscending).is_empty());
+    assert!(label(Os::Mac, Action::NextBookmark).is_empty());
+
+    // 按键事件里的字母总是小写（`Stroke::from_event`），表里写大写的那条永远按不到。
+    for os in ALL_OS {
+        for b in bindings(os) {
+            for stroke in [Some(b.first), b.second].into_iter().flatten() {
+                if let KeyCode::Char(c) = stroke.key {
+                    assert_eq!(c, c.to_ascii_lowercase(), "{os:?}: {}", b.label(os));
+                }
+            }
+        }
+    }
+
+    // ⌘J 显示或隐藏面板，在终端里也生效；其他系统上 Ctrl+J 在终端里是 shell 的换行。
+    for context in [Context::Editor, Context::Terminal] {
+        assert_eq!(
+            runs(Os::Mac, Mods::META, KeyCode::Char('j'), context),
+            Some(Action::ToggleTerminalPanel)
+        );
+    }
+    assert_eq!(
+        runs(Os::Linux, Mods::CTRL, KeyCode::Char('j'), Context::Editor),
+        Some(Action::ToggleTerminalPanel)
+    );
+    assert_eq!(
+        runs(Os::Linux, Mods::CTRL, KeyCode::Char('j'), Context::Terminal),
+        None
+    );
+
+    // ⌃R（其他系统上 Ctrl+R）打开最近的项目；终端里交给 shell，用于反向搜索历史。
+    for os in ALL_OS {
+        let ctrl_r = |context| runs(os, Mods::CTRL, KeyCode::Char('r'), context);
+        assert_eq!(ctrl_r(Context::Editor), Some(Action::OpenRecent));
+        assert_eq!(ctrl_r(Context::Other), Some(Action::OpenRecent));
+        assert_eq!(ctrl_r(Context::Terminal), None);
+    }
+
+    // 同一个键在不同的地方。
+    assert_eq!(
+        runs(Os::Mac, cmd | alt, KeyCode::Char('c'), Context::Find),
+        Some(Action::ToggleCase)
+    );
+    assert_eq!(
+        runs(Os::Mac, cmd | alt, KeyCode::Char('c'), Context::Tree),
+        Some(Action::CopyPath)
+    );
+    assert_eq!(
+        runs(Os::Mac, cmd | alt, KeyCode::Char('c'), Context::Panel),
+        Some(Action::ToggleCase)
+    );
+    assert_eq!(
+        runs(Os::Mac, cmd, KeyCode::Backspace, Context::Editor),
+        Some(Action::DeleteAllLeft)
+    );
+    assert_eq!(
+        runs(Os::Mac, cmd, KeyCode::Backspace, Context::Tree),
+        Some(Action::DeleteFile)
+    );
+    // 永久删除跟随系统的文件管理器；编辑区中 Shift+Delete 仍是原来的操作。
+    assert_eq!(
+        runs(Os::Mac, cmd | alt, KeyCode::Backspace, Context::Tree),
+        Some(Action::DeleteFilePermanently)
+    );
+    for os in [Os::Windows, Os::Linux] {
+        let shift_delete = |context| runs(os, Mods::SHIFT, KeyCode::Delete, context);
+        assert_eq!(
+            shift_delete(Context::Tree),
+            Some(Action::DeleteFilePermanently)
+        );
+        assert_ne!(
+            shift_delete(Context::Editor),
+            Some(Action::DeleteFilePermanently)
+        );
+    }
+    // IDEA 方案中 Shift+Delete 是剪切，文件树里不绑定永久删除；macOS 上仍是 ⌥⌘⌫。
+    let idea = |os, mods, key| match lookup(
+        &Preset::Idea.bindings(os),
+        Stroke { key, mods },
+        None,
+        Context::Tree,
+    ) {
+        Lookup::Run(actions) => actions.first().copied(),
+        _ => None,
+    };
+    assert_eq!(idea(Os::Windows, Mods::SHIFT, KeyCode::Delete), None);
+    assert_eq!(
+        idea(Os::Mac, cmd | alt, KeyCode::Backspace),
+        Some(Action::DeleteFilePermanently)
+    );
+    assert_eq!(
+        runs(Os::Mac, Mods::NONE, KeyCode::Enter, Context::Tree),
+        Some(Action::RenameFile)
+    );
+    assert_eq!(
+        runs(Os::Mac, Mods::NONE, KeyCode::Enter, Context::Editor),
+        None
+    );
+    assert_eq!(
+        runs(Os::Windows, Mods::NONE, KeyCode::Enter, Context::Tree),
+        Some(Action::OpenSelected)
+    );
+    // ⌘- 缩小界面，⌃- 后退；Linux 上 Ctrl+⇧- 前进。
+    assert_eq!(
+        runs(Os::Mac, cmd, KeyCode::Char('-'), Context::Editor),
+        Some(Action::ZoomOut)
+    );
+    assert_eq!(
+        runs(Os::Mac, ctrl, KeyCode::Char('-'), Context::Editor),
+        Some(Action::GoBack)
+    );
+    assert_eq!(
+        runs(Os::Linux, ctrl | shift, KeyCode::Char('-'), Context::Editor),
+        Some(Action::GoForward)
+    );
+    // 不带修饰键的字符是打字。
+    assert_eq!(
+        press(Os::Mac, Mods::NONE, KeyCode::Char('g'), Context::Editor),
+        Lookup::None
+    );
+    assert_eq!(
+        press(Os::Mac, alt, KeyCode::Char('c'), Context::Editor),
+        Lookup::None
+    );
+}
+
+#[test]
+fn chords_wait_for_the_second_key() {
+    let table = bindings(Os::Mac);
+    let k = Stroke {
+        key: KeyCode::Char('k'),
+        mods: Mods::META,
+    };
+    assert_eq!(lookup(&table, k, None, Context::Editor), Lookup::Chord);
+    let s = Stroke {
+        key: KeyCode::Char('s'),
+        mods: Mods::META,
+    };
+    assert_eq!(
+        lookup(&table, s, Some(k), Context::Editor),
+        Lookup::Run(vec![Action::KeyboardShortcuts])
+    );
+    // 第二段对不上：不执行任何命令。
+    assert_eq!(
+        lookup(&table, k, Some(k), Context::Editor),
+        Lookup::Run(Vec::new())
+    );
+    // 编辑区用 `⌘K ⌥⌘C` 复制路径，文件树中没有该组合。
+    let copy = Stroke {
+        key: KeyCode::Char('c'),
+        mods: Mods::META | Mods::ALT,
+    };
+    assert_eq!(
+        lookup(&table, copy, Some(k), Context::Editor),
+        Lookup::Run(vec![Action::CopyPath])
+    );
+    assert_eq!(
+        lookup(&table, copy, Some(k), Context::Tree),
+        Lookup::Run(Vec::new())
+    );
+}
+
+#[test]
+fn rows_merge_identical_keys_and_split_different_ones() {
+    let all: Vec<Row> = rows(&bindings(Os::Mac), Os::Mac)
+        .into_iter()
+        .flat_map(|(_, r)| r)
+        .collect();
+    let of = |action| {
+        all.iter()
+            .filter(|r| r.action == action)
+            .collect::<Vec<_>>()
+    };
+    // 查找条和搜索面板里都是 ⌥⌘C：一行。
+    let case = of(Action::ToggleCase);
+    assert_eq!(case.len(), 1);
+    assert_eq!(case[0].keys, ["⌥⌘C"]);
+    assert_eq!(case[0].when, When::Global);
+    // 复制路径在编辑区与非编辑区的键不同：拆成两行，各自标注生效范围。
+    let copy = of(Action::CopyPath);
+    assert_eq!(copy.len(), 2);
+    assert_eq!(copy[0].when.note(), Some("非编辑区"));
+    assert_eq!(copy[1].when.note(), Some("编辑区、查找栏"));
+    // 没有键的也列。
+    assert!(of(Action::Fix)[0].keys.is_empty());
+    // 「常用」组中只在编辑区生效的命令标注生效范围；「编辑」组的命令不标注。
+    assert_eq!(of(Action::GoToDefinition)[0].when.note(), Some("编辑区"));
+    assert_eq!(of(Action::ToggleComment)[0].when.note(), None);
+}
+
+#[test]
+fn search_matches_names_and_keys() {
+    let all: Vec<Row> = rows(&bindings(Os::Mac), Os::Mac)
+        .into_iter()
+        .flat_map(|(_, r)| r)
+        .collect();
+    let found = |q: &str| {
+        all.iter()
+            .filter(|r| row_matches(r, q, Os::Mac, false))
+            .map(|r| r.action)
+            .collect::<Vec<_>>()
+    };
+    assert!(found("格式化").contains(&Action::Format));
+    assert!(found("format sel").contains(&Action::FormatSelection));
+    assert_eq!(found("⌘K ⌘S"), [Action::KeyboardShortcuts]);
+    assert!(found("cmd k").contains(&Action::FormatSelection));
+    assert!(found("shift cmd p").contains(&Action::ShowCommands));
+    assert!(found("没有这个").is_empty());
+    // 录制的键：只匹配以所录各段开头的键，⌘K 不会匹配 ⌥⌘K。
+    let recorded = |q: &str| {
+        all.iter()
+            .filter(|r| row_matches(r, q, Os::Mac, true))
+            .map(|r| r.action)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(recorded("⌘K ⌘S"), [Action::KeyboardShortcuts]);
+    assert!(recorded("⌘K").contains(&Action::FormatSelection));
+    assert!(!recorded("⌘K").contains(&Action::RecordKeys));
+    assert!(recorded("⌘S").contains(&Action::Save));
+    assert!(!recorded("⌘S").contains(&Action::KeyboardShortcuts));
+    let linux: Vec<Row> = rows(&bindings(Os::Linux), Os::Linux)
+        .into_iter()
+        .flat_map(|(_, r)| r)
+        .collect();
+    assert!(linux.iter().any(
+            |r| r.action == Action::Format && row_matches(r, "ctrl+shift+i", Os::Linux, false)
+        ));
+}
+
+/// 差异右侧接手的命令正好是这份清单：「编辑」分组去掉折叠、书签和缩进、换行符设置，
+/// 加上保存和「选中全部匹配」。
+#[test]
+fn edits_in_diff_matches_the_diff_command_list() {
+    use Action::*;
+    let expected = [
+        Save,
+        Undo,
+        Redo,
+        Cut,
+        Copy,
+        Paste,
+        SelectAll,
+        ToggleComment,
+        DeleteLine,
+        DeleteAllLeft,
+        IndentLines,
+        OutdentLines,
+        MoveLinesUp,
+        MoveLinesDown,
+        CopyLinesUp,
+        CopyLinesDown,
+        JoinLines,
+        ExpandSelection,
+        ShrinkSelection,
+        AddCursorAbove,
+        AddCursorBelow,
+        AddNextOccurrence,
+        SkipToNextOccurrence,
+        SelectAllOccurrences,
+        RemoveSecondaryCursors,
+        AddCursorsToLineEnds,
+        CursorUndo,
+        CursorRedo,
+        ColumnSelectUp,
+        ColumnSelectDown,
+        ColumnSelectLeft,
+        ColumnSelectRight,
+        SelectAllMatches,
+        JumpToBracket,
+        TransformToUppercase,
+        TransformToLowercase,
+        TransformToTitlecase,
+        SortLinesAscending,
+        SortLinesDescending,
+        TrimTrailingWhitespace,
+        Format,
+        FormatSelection,
+        Fix,
+    ];
+    for &action in ACTIONS {
+        assert_eq!(
+            action.edits_in_diff(),
+            expected.contains(&action),
+            "{action:?}"
+        );
+    }
+}
+
+#[test]
+fn the_tree_gets_plain_letters_and_paging_keys() {
+    // 以下按键由文件树自行处理：键入字母、数字跳到对应行，`PageUp`、`PageDown` 翻一屏。
+    // `Home`、`End` 在键位表中没有绑定。
+    for os in ALL_OS {
+        for key in [
+            KeyCode::Char('d'),
+            KeyCode::Char('7'),
+            KeyCode::PageUp,
+            KeyCode::PageDown,
+        ] {
+            assert_eq!(
+                runs(os, Mods::NONE, key, Context::Tree),
+                None,
+                "{os:?} {key:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_key_taken_by_the_input_method_still_matches_with_ctrl() {
+    use winit::keyboard::{
+        Key, KeyCode as Code, KeyLocation, ModifiersState, NamedKey, PhysicalKey,
+    };
+
+    let stroke = |physical, m| {
+        let key = Key::Named(NamedKey::Process);
+        Stroke::from_event(&key, "", physical, KeyLocation::Standard, m)
+    };
+    let comma = PhysicalKey::Code(Code::Comma);
+
+    assert_eq!(
+        stroke(comma, ModifiersState::CONTROL),
+        Some(Stroke {
+            key: KeyCode::Char(','),
+            mods: Mods::CTRL,
+        })
+    );
+    assert_eq!(
+        stroke(
+            PhysicalKey::Code(Code::KeyS),
+            ModifiersState::CONTROL | ModifiersState::ALT
+        ),
+        Some(Stroke {
+            key: KeyCode::Char('s'),
+            mods: Mods::CTRL | Mods::ALT,
+        })
+    );
+    // 没按 Ctrl 是在打字；不对应字符的键没有快捷键可匹配。
+    assert_eq!(stroke(comma, ModifiersState::empty()), None);
+    assert_eq!(stroke(comma, ModifiersState::SHIFT), None);
+    assert_eq!(
+        stroke(PhysicalKey::Code(Code::F1), ModifiersState::CONTROL),
+        None
+    );
+}
+
+#[test]
+fn diff_navigation_keys_reach_their_commands_from_key_events() {
+    use winit::keyboard::{
+        Key, KeyCode as Code, KeyLocation, ModifiersState, NamedKey, PhysicalKey,
+    };
+
+    let shift = ModifiersState::SHIFT;
+    let alt = ModifiersState::ALT;
+    let cases = [
+        (
+            NamedKey::F7,
+            Code::F7,
+            ModifiersState::empty(),
+            Action::NextDifference,
+        ),
+        (NamedKey::F7, Code::F7, shift, Action::PreviousDifference),
+        (NamedKey::F5, Code::F5, alt, Action::NextDifference),
+        (
+            NamedKey::F5,
+            Code::F5,
+            alt | shift,
+            Action::PreviousDifference,
+        ),
+    ];
+    for os in ALL_OS {
+        let table = bindings(os);
+        for (named, code, mods, action) in cases {
+            let stroke = Stroke::from_event(
+                &Key::Named(named),
+                "",
+                PhysicalKey::Code(code),
+                KeyLocation::Standard,
+                mods,
+            )
+            .unwrap();
+            let found = lookup(&table, stroke, None, Context::Editor);
+            assert!(
+                matches!(&found, Lookup::Run(actions) if actions.contains(&action)),
+                "{os:?} {named:?} {mods:?}"
+            );
+            assert!(action.navigates_diff());
+        }
+    }
+}
+
+/// IDEA 方案取 IDEA 在各系统上的默认键；Linux 与 Windows 只在少数几个键上不同。
+#[test]
+fn idea_key_labels_per_system() {
+    let label = |os: Os, action: Action| {
+        (Preset::Idea.bindings(os).iter())
+            .filter(|b| b.action == action)
+            .map(|b| b.label(os))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(label(Os::Mac, Action::ShowCommands), ["⇧⌘A"]);
+    assert_eq!(label(Os::Windows, Action::ShowCommands), ["Ctrl+Shift+A"]);
+    assert_eq!(label(Os::Mac, Action::QuickOpen), ["⇧⌘O", "⇧⇧"]);
+    assert_eq!(
+        label(Os::Windows, Action::QuickOpen),
+        ["Ctrl+Shift+N", "Shift Shift"]
+    );
+    assert_eq!(label(Os::Mac, Action::GoToDefinition), ["⌘B"]);
+    assert_eq!(label(Os::Mac, Action::Format), ["⌥⌘L"]);
+    assert_eq!(label(Os::Windows, Action::Format), ["Ctrl+Alt+L"]);
+    assert_eq!(label(Os::Mac, Action::CopyLinesDown), ["⌘D"]);
+    assert_eq!(label(Os::Mac, Action::DeleteLine), ["⌘⌫"]);
+    assert_eq!(label(Os::Windows, Action::DeleteLine), ["Ctrl+Y"]);
+    assert_eq!(label(Os::Mac, Action::GoToLine), ["⌘L"]);
+    assert_eq!(label(Os::Mac, Action::ExpandSelection), ["⌥↑"]);
+    assert_eq!(label(Os::Windows, Action::ExpandSelection), ["Ctrl+W"]);
+    assert_eq!(label(Os::Mac, Action::ShowCommit), ["⌘K"]);
+    assert_eq!(label(Os::Mac, Action::GitShowLog), ["⌘9"]);
+    assert_eq!(label(Os::Windows, Action::GitShowLog), ["Alt+9"]);
+    assert_eq!(label(Os::Mac, Action::ToggleTerminal), ["⌥F12"]);
+    assert_eq!(label(Os::Windows, Action::CloseTab), ["Ctrl+F4"]);
+    assert_eq!(label(Os::Linux, Action::ZoomIn), ["Ctrl+Shift+Alt+="]);
+    assert_eq!(label(Os::Windows, Action::ZoomIn), ["Shift+Alt+="]);
+    assert!(label(Os::Mac, Action::OpenRecent).is_empty());
+    assert!(label(Os::Windows, Action::Quit).is_empty());
+
+    // 编辑区里 ⌘B 跳到定义，可编辑的 Markdown 预览里 ⌘B 加粗。
+    let table = Preset::Idea.bindings(Os::Mac);
+    let first = |mods, key, context| match lookup(&table, Stroke { key, mods }, None, context) {
+        Lookup::Run(actions) => actions.first().copied(),
+        _ => None,
+    };
+    let b = KeyCode::Char('b');
+    assert_eq!(
+        first(Mods::META, b, Context::Editor),
+        Some(Action::GoToDefinition)
+    );
+    assert_eq!(
+        first(Mods::META, b, Context::Markdown),
+        Some(Action::MarkdownBold)
+    );
+    // ⌃R 运行，终端里交给 shell；⌘T 在终端里新建标签，在其他地方更新项目。
+    let (r, t) = (KeyCode::Char('r'), KeyCode::Char('t'));
+    assert_eq!(
+        first(Mods::CTRL, r, Context::Editor),
+        Some(Action::RunConfiguration)
+    );
+    assert_eq!(first(Mods::CTRL, r, Context::Terminal), None);
+    assert_eq!(
+        first(Mods::META, t, Context::Terminal),
+        Some(Action::NewTerminal)
+    );
+    assert_eq!(first(Mods::META, t, Context::Editor), Some(Action::GitPull));
+    // 连按两下 Shift 是两段组合键，第一下单按不执行命令。
+    let tap = Stroke {
+        key: KeyCode::Tap,
+        mods: Mods::SHIFT,
+    };
+    assert_eq!(lookup(&table, tap, None, Context::Editor), Lookup::Chord);
+    assert_eq!(
+        lookup(&table, tap, Some(tap), Context::Editor),
+        Lookup::Run(vec![Action::QuickOpen])
+    );
+}
+
+/// 按键的写法读入后再写出不变；写法不对时读不出来。
+#[test]
+fn key_specs_round_trip() {
+    for os in ALL_OS {
+        for preset in Preset::ALL {
+            for b in preset.bindings(os) {
+                let text = binding_spec(b.first, b.second, os);
+                assert_eq!(parse_spec(&text), Some((b.first, b.second)), "{text}");
+            }
+        }
+    }
+    let ctrl_plus = Stroke {
+        key: KeyCode::Char('+'),
+        mods: Mods::CTRL,
+    };
+    assert_eq!(parse_spec("Ctrl++"), Some((ctrl_plus, None)));
+    assert_eq!(
+        parse_spec("win+F4").map(|(s, _)| s),
+        Some(Stroke {
+            key: KeyCode::F(4),
+            mods: Mods::META
+        })
+    );
+    for bad in [
+        "",
+        "ctrl+",
+        "ctrl+shift",
+        "f13",
+        "a b c",
+        "ctrl+hyper+a",
+        "numpad_x",
+    ] {
+        assert_eq!(parse_spec(bad), None, "{bad}");
+    }
+}
+
+/// 改过的键整组替换命令在方案中的键，并从其他命令上拿走同一个键；配置中的写法读写一致。
+#[test]
+fn custom_keys_replace_the_preset_and_take_the_key() {
+    let mut map = std::collections::BTreeMap::new();
+    map.insert("quickOpen".to_owned(), vec!["cmd+p".to_owned()]);
+    map.insert("format".to_owned(), vec![]);
+    map.insert("noSuchCommand".to_owned(), vec!["cmd+j".to_owned()]);
+    map.insert(
+        "save".to_owned(),
+        vec!["cmd+s".to_owned(), "cmd+".to_owned()],
+    );
+    let (custom, problems) = Custom::from_config(&map);
+    assert_eq!(problems.len(), 2, "{problems:?}");
+    let table = custom.apply(Preset::Idea, Os::Mac);
+    let keys = |action| {
+        (table.iter())
+            .filter(|b| b.action == action)
+            .map(|b| b.label(Os::Mac))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(keys(Action::QuickOpen), ["⌘P"]);
+    assert!(keys(Action::Format).is_empty());
+    assert_eq!(keys(Action::Save), ["⌘S"]);
+    let mut written = map.clone();
+    written.remove("noSuchCommand");
+    written.insert("save".to_owned(), vec!["cmd+s".to_owned()]);
+    assert_eq!(custom.to_config(Os::Mac), written);
+
+    // ⌘D 改给「添加下一处匹配」后，「复制行」不再占用它。
+    let mut custom = Custom::default();
+    let cmd_d = parse_spec("cmd+d").unwrap();
+    custom.set(Action::AddNextOccurrence, vec![cmd_d]);
+    let table = custom.apply(Preset::Idea, Os::Mac);
+    let found = lookup(&table, cmd_d.0, None, Context::Editor);
+    assert_eq!(found, Lookup::Run(vec![Action::AddNextOccurrence]));
+    // 两个改过的命令抢同一个键时，只有一个命令得到它；去掉其中一个后另一个得到。
+    custom.set(Action::Format, vec![cmd_d]);
+    let table = custom.apply(Preset::Idea, Os::Mac);
+    let Lookup::Run(found) = lookup(&table, cmd_d.0, None, Context::Editor) else {
+        panic!("⌘D 应有命令");
+    };
+    assert_eq!(found.len(), 1);
+    custom.release(found[0], cmd_d);
+    let table = custom.apply(Preset::Idea, Os::Mac);
+    let other = lookup(&table, cmd_d.0, None, Context::Editor);
+    assert!(matches!(other, Lookup::Run(ref a) if a.len() == 1 && a[0] != found[0]));
+    custom.reset(Action::Format);
+    custom.reset(Action::AddNextOccurrence);
+    assert!(custom.is_empty());
+    for (i, action) in ACTIONS.iter().enumerate() {
+        assert_eq!(Action::from_id(&action.id()), Some(*action));
+        assert!(!ACTIONS[i + 1..].iter().any(|a| a.id() == action.id()));
+    }
+}
