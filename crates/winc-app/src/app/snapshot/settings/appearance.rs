@@ -612,3 +612,47 @@ fn scrolling_settings_over_a_background_image_looks_the_same() {
 
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// 「石墨·昼」自带衬线的界面字体，别的主题用系统的；设置了 `ui.font` 时以设置的为准。
+#[test]
+fn a_theme_brings_its_own_ui_font_unless_one_is_set() {
+    use winit::window::Theme;
+    let mut app = blank_app(false);
+    app.set_theme(Theme::Light);
+    assert!(
+        app.ui_font()
+            .is_some_and(|font| font.starts_with("Charter"))
+    );
+    assert_eq!(app.theme_font, app.current_theme_font());
+    app.set_theme(Theme::Dark);
+    assert_eq!((app.ui_font(), app.theme_font), (None, None));
+    // 同一种外观里换一套主题也跟着换。
+    app.set_theme(Theme::Light);
+    app.set_named_theme(false, 1);
+    assert_eq!((app.ui_font(), app.theme_font), (None, None));
+    app.set_named_theme(false, 0);
+    assert!(app.theme_font.is_some());
+    app.config.ui_font = Some("Inter".to_owned());
+    assert_eq!(app.ui_font().as_deref(), Some("Inter"));
+}
+
+/// 换到自带界面字体的主题时不滚回光标：光标在屏幕外，正在看的位置留在原处。
+#[test]
+fn a_theme_that_changes_the_font_keeps_the_scroll_position() {
+    use winit::window::Theme;
+    let dir = search_folder("theme-font-scroll");
+    let text: String = (0..200).map(|i| format!("line {i}\n")).collect();
+    std::fs::write(dir.join("src/long.rs"), text).unwrap();
+    let mut app = app_with(&dir, true);
+    app.open_path(&dir.join("src/long.rs"));
+    app.editor.active_mut().unwrap().scroll_line = 120.0;
+
+    app.set_theme(Theme::Light);
+    assert!(app.theme_font.is_some());
+    assert_eq!(app.editor.active().unwrap().scroll_line, 120.0);
+    app.set_theme(Theme::Dark);
+    assert_eq!(app.theme_font, None);
+    assert_eq!(app.editor.active().unwrap().scroll_line, 120.0);
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}

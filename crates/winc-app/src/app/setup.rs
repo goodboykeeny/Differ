@@ -42,7 +42,7 @@ pub(crate) const ICON: &str = include_str!("../../assets/icon.svg");
 const LAYERS: [&str; 3] = ["<!-- 四周透明 -->", "<!-- 丝带轮廓与折面 -->", "<circle"];
 
 /// 丝带从左到右显露时，裁剪矩形右边缘的起点和终点（SVG 用户单位）：略宽于丝带的左右两端。
-const RIBBON_SPAN: (f32, f32) = (150.0, 860.0);
+const RIBBON_SPAN: (f32, f32) = (270.0, 760.0);
 
 /// 圆点落下之前在最终位置上方的距离（SVG 用户单位），约为圆点直径。
 const DOT_DROP: f32 = 120.0;

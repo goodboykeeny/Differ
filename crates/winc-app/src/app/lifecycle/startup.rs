@@ -58,6 +58,7 @@ impl App {
             },
             config,
             theme_choice,
+            theme_font: None,
             state: State::default(),
             backup: backup::BackupState::default(),
             opened_terminal: None,
