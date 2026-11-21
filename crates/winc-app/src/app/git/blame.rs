@@ -482,16 +482,20 @@ impl App {
 
     /// 在日志标签中选中逐行追溯里的提交 `commit`；尚未提交的行说明原因。
     ///
-    /// 提交在另一个仓库 `root` 里时（打开的目录里有几个仓库）先切换到那个仓库：提交在它的日志里。
+    /// 提交在另一个仓库 `root` 里时（打开的目录里有几个仓库，或任务差异里某个项目的工作树）先切换
+    /// 到那个仓库：提交在它的日志里。
     fn show_blamed_commit(&mut self, commit: &BlameCommit, root: Option<PathBuf>) {
         if commit.uncommitted {
             self.flash(t!("git-blame-line-uncommitted"));
             return;
         }
-        let owner = root.filter(|root| self.git.root.as_ref() != Some(root));
-        let index = owner.and_then(|root| self.git.repositories.iter().position(|r| *r == root));
-        if let Some(index) = index {
-            self.git_switch_repository(index);
+        // 任务差异里的项目（`.worktrees` 下的工作树）不在打开的目录找到的仓库里：先加入列表。
+        if let Some(root) = root.filter(|root| self.git.root.as_ref() != Some(root)) {
+            if !self.git.repositories.contains(&root) {
+                self.git.repositories.push(root.clone());
+                self.git_read_summaries();
+            }
+            self.git_set_root(Some(root));
         }
         self.git_show_log_at(&commit.oid);
     }
