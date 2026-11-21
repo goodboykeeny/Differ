@@ -141,8 +141,10 @@ impl App {
         self.palette = self.theme_palette(theme == Theme::Dark);
         self.terminal_theme_changed();
         // 主题自带的界面字体不同时跟着换；字体不可用时渲染层保持原来的。
-        if self.current_theme_font() != self.theme_font {
-            let _ = self.apply_fonts();
+        // 只换字体：不像改字号那样滚回光标，正在看的位置留在原处。
+        if self.current_theme_font() != self.theme_font && self.load_fonts().is_ok() {
+            self.measure_fonts();
+            self.clamp_scroll();
         }
 
         if let Some(renderer) = &mut self.frame.renderer {
@@ -159,6 +161,13 @@ impl App {
     ///
     /// 渲染层无法使用配置的字体时，返回面向用户的错误说明。
     pub(in crate::app) fn apply_fonts(&mut self) -> Result<(), String> {
+        self.load_fonts()?;
+        self.apply_font_sizes();
+        Ok(())
+    }
+
+    /// 让渲染层加载当前的字体，不动字号和滚动位置。
+    fn load_fonts(&mut self) -> Result<(), String> {
         let [mono, ui, terminal] = self.font_specs();
         self.theme_font = self.current_theme_font();
         let weight = self.font_weight();
@@ -171,8 +180,6 @@ impl App {
         {
             return Err(winc_i18n::t!("workspace-font-unusable").to_owned());
         }
-
-        self.apply_font_sizes();
         Ok(())
     }
 }
