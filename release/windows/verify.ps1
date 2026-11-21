@@ -4,7 +4,7 @@ $root = (Resolve-Path "$PSScriptRoot/../..").Path
 $version = (& node "$PSScriptRoot/../common/version.mjs").Trim()
 if ($LASTEXITCODE -ne 0) { throw 'cannot read the VERSION file' }
 $bundle = "$root/target/$Target/release/bundle"
-$work = Join-Path $env:RUNNER_TEMP 'winc-installer-verification'
+$work = Join-Path $env:RUNNER_TEMP 'differ-installer-verification'
 New-Item -ItemType Directory -Force $work | Out-Null
 $update = "$root/crates/winc-app/src/updates/installer/update.ps1"
 # The NSIS installer changes the user's Path and the MSI changes the machine's.
@@ -13,26 +13,26 @@ function Get-CommandPath([string]$Kind) {
     @([Environment]::GetEnvironmentVariable('Path', $scope) -split ';' | ForEach-Object { $_.TrimEnd('\') })
 }
 # File associations and the file manager take the icon from the executable itself.
-$shell = Add-Type -Name Shell -Namespace WincVerify -PassThru -MemberDefinition '[DllImport("shell32.dll", CharSet = CharSet.Unicode)] public static extern uint ExtractIconEx(string file, int index, IntPtr large, IntPtr small, uint count);'
-if ($shell::ExtractIconEx("$root/target/$Target/release/winc.exe", -1, [IntPtr]::Zero, [IntPtr]::Zero, 0) -lt 1) { throw 'winc.exe has no embedded icon' }
+$shell = Add-Type -Name Shell -Namespace DifferVerify -PassThru -MemberDefinition '[DllImport("shell32.dll", CharSet = CharSet.Unicode)] public static extern uint ExtractIconEx(string file, int index, IntPtr large, IntPtr small, uint count);'
+if ($shell::ExtractIconEx("$root/target/$Target/release/differ.exe", -1, [IntPtr]::Zero, [IntPtr]::Zero, 0) -lt 1) { throw 'differ.exe has no embedded icon' }
 foreach ($kind in @('nsis', 'msi')) {
     $directory = Join-Path $work "$kind installation with spaces"
     $suffix = if ($kind -eq 'nsis') { '-setup.exe' } else { '.msi' }
     # msiexec cannot open a package path written with forward slashes (error 1619).
-    $setup = (Resolve-Path "$bundle/$kind/Winc-$version-windows-x64$suffix").Path
+    $setup = (Resolve-Path "$bundle/$kind/Differ-$version-windows-x64$suffix").Path
     $classes = if ($kind -eq 'nsis') { 'HKCU:\Software\Classes' } else { 'HKLM:\Software\Classes' }
-    # An earlier NSIS version listed winc in each type's OpenWithProgids; installing must remove it.
+    # An earlier NSIS version listed differ in each type's OpenWithProgids; installing must remove it.
     # `New-Item -Force` also creates missing parent keys, but it would recreate an existing key and
     # drop other programs' entries, so it runs only when the key is missing.
-    # The Start menu and Windows' app lists show the name Winc. The NSIS shortcut goes in the user's
-    # Start menu, the MSI one in a Winc folder of the machine's; an existing lowercase shortcut must
+    # The Start menu and Windows' app lists show the name Differ. The NSIS shortcut goes in the user's
+    # Start menu, the MSI one in a Differ folder of the machine's; an existing lowercase shortcut must
     # not keep its name.
-    $menu = if ($kind -eq 'nsis') { [Environment]::GetFolderPath('Programs') } else { Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Winc' }
+    $menu = if ($kind -eq 'nsis') { [Environment]::GetFolderPath('Programs') } else { Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Differ' }
     if ($kind -eq 'nsis') {
-        Set-Content -LiteralPath (Join-Path $menu 'winc.lnk') -Value ''
+        Set-Content -LiteralPath (Join-Path $menu 'differ.lnk') -Value ''
         $listing = "$classes\.json\OpenWithProgids"
         if (-not (Test-Path -LiteralPath $listing)) { New-Item -Force -Path $listing | Out-Null }
-        New-ItemProperty -Force -LiteralPath $listing -Name 'winc.JSON' -Value '' | Out-Null
+        New-ItemProperty -Force -LiteralPath $listing -Name 'differ.JSON' -Value '' | Out-Null
     }
     try {
         if ($kind -eq 'nsis') {
@@ -41,51 +41,51 @@ foreach ($kind in @('nsis', 'msi')) {
             $process = Start-Process msiexec.exe -ArgumentList "/i `"$setup`" /qn /norestart INSTALLFOLDER=`"$directory`"" -Wait -PassThru
         }
         if ($process.ExitCode -notin @(0, 1641, 3010)) { throw "$kind installation failed: $($process.ExitCode)" }
-        foreach ($file in @('winc.exe', 'winc-pty.exe', 'conpty.dll', 'OpenConsole.exe', 'winc-installation', 'winc-watch', 'winc-server-Linux-x86_64', 'winc-server-Linux-aarch64', 'bin/winc', 'bin/winc.cmd')) {
+        foreach ($file in @('differ.exe', 'winc-pty.exe', 'conpty.dll', 'OpenConsole.exe', 'winc-installation', 'winc-watch', 'winc-server-Linux-x86_64', 'winc-server-Linux-aarch64', 'bin/differ', 'bin/differ.cmd')) {
             if (-not (Test-Path "$directory/$file")) { throw "${kind}: missing $file" }
         }
-        if ((Get-Content "$directory/bin/winc" -Raw) -match "`r") { throw "${kind}: bin/winc has CRLF line endings" }
+        if ((Get-Content "$directory/bin/differ" -Raw) -match "`r") { throw "${kind}: bin/differ has CRLF line endings" }
         if ((Get-CommandPath $kind) -notcontains "$directory\bin") { throw "${kind}: bin is not on the Path" }
         if ((Get-Content "$directory/winc-installation" -Raw).Trim() -ne $kind) { throw 'incorrect installation marker' }
         # Each type's ProgID shows the document icon of its group.
         foreach ($pair in @(@('JSON', 'json'), @('MD', 'markdown'), @('RS', 'rust'), @('SQL', 'code'))) {
-            $icon = (Get-ItemProperty -LiteralPath "$classes\winc.$($pair[0])\DefaultIcon").'(default)'
+            $icon = (Get-ItemProperty -LiteralPath "$classes\differ.$($pair[0])\DefaultIcon").'(default)'
             if ($icon -ne "$directory\icons\$($pair[1]).ico") { throw "${kind}: wrong icon for $($pair[0]): $icon" }
             if (-not (Test-Path -LiteralPath $icon)) { throw "${kind}: missing $icon" }
         }
-        $command = (Get-ItemProperty -LiteralPath "$classes\winc.JSON\shell\open\command").'(default)'
-        if ($command -ne "`"$directory\winc.exe`" `"%1`"") { throw "${kind}: wrong open command: $command" }
-        if ($null -eq (Get-ItemProperty -LiteralPath "$classes\Applications\winc.exe\SupportedTypes").'.json') { throw "${kind}: json is not a supported type" }
-        if ((Get-ItemProperty -LiteralPath "$classes\Applications\winc.exe").FriendlyAppName -cne 'Winc') { throw "${kind}: the application is not named Winc" }
+        $command = (Get-ItemProperty -LiteralPath "$classes\differ.JSON\shell\open\command").'(default)'
+        if ($command -ne "`"$directory\differ.exe`" `"%1`"") { throw "${kind}: wrong open command: $command" }
+        if ($null -eq (Get-ItemProperty -LiteralPath "$classes\Applications\differ.exe\SupportedTypes").'.json') { throw "${kind}: json is not a supported type" }
+        if ((Get-ItemProperty -LiteralPath "$classes\Applications\differ.exe").FriendlyAppName -cne 'Differ') { throw "${kind}: the application is not named Differ" }
         # Explorer context menu: supported types open the file, folders and their empty space open
         # the folder. The label follows the installer's language.
         foreach ($verb in @(@('SystemFileAssociations\.json', '%1'), @('Directory', '%V'), @('Directory\Background', '%V'))) {
-            $key = "$classes\$($verb[0])\shell\winc"
+            $key = "$classes\$($verb[0])\shell\differ"
             if (-not (Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue).'(default)') { throw "${kind}: no context menu label under $($verb[0])" }
             $command = (Get-ItemProperty -LiteralPath "$key\command").'(default)'
-            if ($command -ne "`"$directory\winc.exe`" `"$($verb[1])`"") { throw "${kind}: wrong context menu command under $($verb[0]): $command" }
+            if ($command -ne "`"$directory\differ.exe`" `"$($verb[1])`"") { throw "${kind}: wrong context menu command under $($verb[0]): $command" }
         }
-        # The winc: URL scheme hands the whole link to winc.exe.
-        if ($null -eq (Get-ItemProperty -LiteralPath "$classes\winc").'URL Protocol') { throw "${kind}: winc is not a URL scheme" }
+        # The winc: URL scheme hands the whole link to differ.exe.
+        if ($null -eq (Get-ItemProperty -LiteralPath "$classes\winc").'URL Protocol') { throw "${kind}: differ is not a URL scheme" }
         $command = (Get-ItemProperty -LiteralPath "$classes\winc\shell\open\command").'(default)'
-        if ($command -ne "`"$directory\winc.exe`" `"%1`"") { throw "${kind}: wrong URL scheme command: $command" }
-        $link = Get-ChildItem -LiteralPath $menu -Filter 'winc.lnk'
-        if (@($link).Count -ne 1 -or $link.Name -cne 'Winc.lnk') { throw "${kind}: the Start menu shortcut is not named Winc" }
-        if ($kind -eq 'msi' -and (Get-Item -LiteralPath $menu).Name -cne 'Winc') { throw 'msi: the Start menu folder is not named Winc' }
-        if ($kind -eq 'nsis' -and (Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\winc').DisplayName -cne 'Winc') { throw 'nsis: the installed app is not listed as Winc' }
+        if ($command -ne "`"$directory\differ.exe`" `"%1`"") { throw "${kind}: wrong URL scheme command: $command" }
+        $link = Get-ChildItem -LiteralPath $menu -Filter 'differ.lnk'
+        if (@($link).Count -ne 1 -or $link.Name -cne 'Differ.lnk') { throw "${kind}: the Start menu shortcut is not named Differ" }
+        if ($kind -eq 'msi' -and (Get-Item -LiteralPath $menu).Name -cne 'Differ') { throw 'msi: the Start menu folder is not named Differ' }
+        if ($kind -eq 'nsis' -and (Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\differ').DisplayName -cne 'Differ') { throw 'nsis: the installed app is not listed as Differ' }
         # A handler listed under a type makes Windows ask which program to use, and for types it runs
         # on double-click (BAT, CMD) the question replaces running the script.
         foreach ($type in @('json', 'txt', 'bat', 'cmd')) {
             $listed = Get-ItemProperty -LiteralPath "$classes\.$type\OpenWithProgids" -ErrorAction SilentlyContinue
-            if ($null -ne $listed -and $null -ne $listed."winc.$type") { throw "${kind}: winc is listed under .$type" }
+            if ($null -ne $listed -and $null -ne $listed."differ.$type") { throw "${kind}: differ is listed under .$type" }
         }
         foreach ($type in @('bat', 'cmd')) {
-            if (Test-Path -LiteralPath "$classes\winc.$type") { throw "${kind}: $type must not be registered" }
+            if (Test-Path -LiteralPath "$classes\differ.$type") { throw "${kind}: $type must not be registered" }
         }
-        # Listing winc under the types is the user's choice. Once chosen it survives a later silent
+        # Listing differ under the types is the user's choice. Once chosen it survives a later silent
         # installation, which is how updates run; /FILETYPES=0 turns it off again.
         if ($kind -eq 'nsis') {
-            $listed = { $null -ne (Get-ItemProperty -LiteralPath "$classes\.json\OpenWithProgids" -ErrorAction SilentlyContinue).'winc.JSON' }
+            $listed = { $null -ne (Get-ItemProperty -LiteralPath "$classes\.json\OpenWithProgids" -ErrorAction SilentlyContinue).'differ.JSON' }
             foreach ($step in @(@('/FILETYPES=1', $true), @('', $true), @('/FILETYPES=0', $false), @('', $false))) {
                 $process = Start-Process -FilePath $setup -ArgumentList "/S $($step[0]) /D=$directory" -Wait -PassThru
                 if ($process.ExitCode -ne 0) { throw "nsis installation with '$($step[0])' failed: $($process.ExitCode)" }
@@ -100,14 +100,14 @@ foreach ($kind in @('nsis', 'msi')) {
         # parameter empty.
         $env:WINC_UPDATE_PARENT = "$($parent.Id)"
         $env:WINC_UPDATE_SETUP = $setup
-        $env:WINC_UPDATE_EXE = "$directory/winc.exe"
+        $env:WINC_UPDATE_EXE = "$directory/differ.exe"
         $env:WINC_UPDATE_KIND = $kind
         $env:WINC_UPDATE_RELAUNCH = '0'
         & powershell.exe -NoProfile -NonInteractive -Command (Get-Content -LiteralPath $update -Raw)
         $status = $LASTEXITCODE
         Remove-Item Env:WINC_UPDATE_*
         if ($status -ne 0) { throw "$kind updater failed" }
-        foreach ($file in @('winc.exe', 'winc-pty.exe')) {
+        foreach ($file in @('differ.exe', 'winc-pty.exe')) {
             if ((Get-FileHash "$directory/$file").Hash -ne (Get-FileHash "$root/target/$Target/release/$file").Hash) {
                 throw "$kind update changed $file"
             }
@@ -123,14 +123,14 @@ foreach ($kind in @('nsis', 'msi')) {
         if (Test-Path "$directory/$file") { throw "${kind}: uninstall left $file behind" }
     }
     if ((Get-CommandPath $kind) -contains "$directory\bin") { throw "${kind}: uninstall left bin on the Path" }
-    if (Test-Path -LiteralPath "$classes\winc.JSON") { throw "${kind}: uninstall left the file type behind" }
+    if (Test-Path -LiteralPath "$classes\differ.JSON") { throw "${kind}: uninstall left the file type behind" }
     if (Test-Path "$directory/icons") { throw "${kind}: uninstall left the icons behind" }
-    if (Test-Path -LiteralPath "$classes\Applications\winc.exe") { throw "${kind}: uninstall left the application behind" }
+    if (Test-Path -LiteralPath "$classes\Applications\differ.exe") { throw "${kind}: uninstall left the application behind" }
     foreach ($key in @('SystemFileAssociations\.json', 'Directory', 'Directory\Background')) {
-        if (Test-Path -LiteralPath "$classes\$key\shell\winc") { throw "${kind}: uninstall left the context menu under $key" }
+        if (Test-Path -LiteralPath "$classes\$key\shell\differ") { throw "${kind}: uninstall left the context menu under $key" }
     }
     if (Test-Path -LiteralPath "$classes\winc") { throw "${kind}: uninstall left the URL scheme behind" }
-    if (Test-Path -LiteralPath (Join-Path $menu 'Winc.lnk')) { throw "${kind}: uninstall left the Start menu shortcut behind" }
+    if (Test-Path -LiteralPath (Join-Path $menu 'Differ.lnk')) { throw "${kind}: uninstall left the Start menu shortcut behind" }
 }
-Expand-Archive "$bundle/portable/Winc-$version-windows-x64-portable.zip" "$work/portable" -Force
-if ((Test-Path "$work/portable/winc-installation") -or -not (Test-Path "$work/portable/winc-pty.exe") -or -not (Test-Path "$work/portable/conpty.dll") -or -not (Test-Path "$work/portable/OpenConsole.exe") -or -not (Test-Path "$work/portable/bin/winc") -or -not (Test-Path "$work/portable/winc-watch") -or -not (Test-Path "$work/portable/winc-server-Linux-x86_64") -or -not (Test-Path "$work/portable/winc-server-Linux-aarch64") -or -not (Test-Path "$work/portable/data/README.txt")) { throw 'invalid portable layout' }
+Expand-Archive "$bundle/portable/Differ-$version-windows-x64-portable.zip" "$work/portable" -Force
+if ((Test-Path "$work/portable/winc-installation") -or -not (Test-Path "$work/portable/winc-pty.exe") -or -not (Test-Path "$work/portable/conpty.dll") -or -not (Test-Path "$work/portable/OpenConsole.exe") -or -not (Test-Path "$work/portable/bin/differ") -or -not (Test-Path "$work/portable/winc-watch") -or -not (Test-Path "$work/portable/winc-server-Linux-x86_64") -or -not (Test-Path "$work/portable/winc-server-Linux-aarch64") -or -not (Test-Path "$work/portable/data/README.txt")) { throw 'invalid portable layout' }

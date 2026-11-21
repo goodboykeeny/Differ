@@ -1,11 +1,11 @@
 name: Release Tag
 
 # Every merge into main is a release: tag the version in the VERSION file as
-# `v<version>` and start the Release workflow, which opens a draft release. Publishing the draft is
-# still a human step. A push whose version is already tagged fails, because the version was not
+# `v<version>` and start the Differ Release workflow, which builds the installers and publishes
+# the release. A push whose version is already tagged fails, because the version was not
 # raised; the "Release version" check on pull requests into main stops that before the merge.
 # A manual run with the version already tagged does nothing, so a failed release can be retried by
-# running the Release workflow on the existing tag.
+# running the Differ Release workflow on the existing tag.
 #
 # The tag is pushed with GITHUB_TOKEN, and events raised that way do not start
 # other workflows, so they are started explicitly via workflow_dispatch (the
@@ -66,4 +66,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          gh workflow run release.yml --ref "refs/tags/$RELEASE_TAG"
+          gh workflow run differ-release.yml --ref "refs/tags/$RELEASE_TAG"

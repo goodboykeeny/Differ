@@ -57,7 +57,7 @@ case "$phase" in
   app)
     cargo xtask app --target "$target" --no-build
     mkdir -p "$bundle/macos"
-    mv "$bundle/winc.app" "$app"
+    mv "$bundle/Differ.app" "$app"
     if [[ "$mode" == apple ]]; then
       import_certificate
       # Sign Mach-O leaves before their containing XPCs, frameworks and app.

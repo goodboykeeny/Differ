@@ -6,15 +6,15 @@ SetCompressor /SOLID lzma
 !include "Sections.nsh"
 !include "FileFunc.nsh"
 
-Name "Winc"
+Name "Differ"
 OutFile "${OUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\winc"
-InstallDirRegKey HKCU "Software\DEEIX\winc" "InstallDir"
+InstallDir "$LOCALAPPDATA\Programs\Differ"
+InstallDirRegKey HKCU "Software\Differ" "InstallDir"
 Icon "${SOURCE}\winc.ico"
 UninstallIcon "${SOURCE}\winc.ico"
 VIProductVersion "${VIVERSION}"
-VIAddVersionKey /LANG=1033 "ProductName" "Winc"
-VIAddVersionKey /LANG=1033 "FileDescription" "Winc installer"
+VIAddVersionKey /LANG=1033 "ProductName" "Differ"
+VIAddVersionKey /LANG=1033 "FileDescription" "Differ installer"
 VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "DEEIX"
 !ifdef SIGN_SCRIPT
@@ -26,7 +26,7 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "DEEIX"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\winc.exe"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\differ.exe"
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
@@ -34,19 +34,19 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "DEEIX"
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
-; The optional section that lists winc under the supported file types.
+; The optional section that lists differ under the supported file types.
 LangString FileTypesSection ${LANG_ENGLISH} "Associate file types"
 LangString FileTypesSection ${LANG_SIMPCHINESE} "关联文件类型"
-LangString FileTypesText ${LANG_ENGLISH} "Lists Winc among the programs for source and text files. A type opened with Winc by default then shows its own document icon. Windows may ask once which program to use for these files."
-LangString FileTypesText ${LANG_SIMPCHINESE} "把 Winc 列为源代码和文本文件的可选程序。设为默认程序的类型会显示各自的文档图标。Windows 可能会询问一次用哪个程序打开这些文件。"
+LangString FileTypesText ${LANG_ENGLISH} "Lists Differ among the programs for source and text files. A type opened with Differ by default then shows its own document icon. Windows may ask once which program to use for these files."
+LangString FileTypesText ${LANG_SIMPCHINESE} "把 Differ 列为源代码和文本文件的可选程序。设为默认程序的类型会显示各自的文档图标。Windows 可能会询问一次用哪个程序打开这些文件。"
 
 ; Explorer context menu labels, in the installer's language.
-LangString OpenFileVerb ${LANG_ENGLISH} "Open with Winc"
-LangString OpenFileVerb ${LANG_SIMPCHINESE} "通过 Winc 打开"
-LangString OpenFolderVerb ${LANG_ENGLISH} "Open in Winc"
-LangString OpenFolderVerb ${LANG_SIMPCHINESE} "在 Winc 中打开"
+LangString OpenFileVerb ${LANG_ENGLISH} "Open with Differ"
+LangString OpenFileVerb ${LANG_SIMPCHINESE} "通过 Differ 打开"
+LangString OpenFolderVerb ${LANG_ENGLISH} "Open in Differ"
+LangString OpenFolderVerb ${LANG_SIMPCHINESE} "在 Differ 中打开"
 
-; Types winc can open, listed under Applications\winc.exe\SupportedTypes: winc appears in
+; Types differ can open, listed under Applications\differ.exe\SupportedTypes: differ appears in
 ; "Open with" > "Choose another app" for them. Nothing is written under the types themselves unless
 ; the optional file types section is selected, so Windows keeps their default program and icon and
 ; does not ask which program to use; scripts still run on double-click. Keep this list the same as
@@ -138,63 +138,63 @@ LangString OpenFolderVerb ${LANG_SIMPCHINESE} "在 Winc 中打开"
   !insertmacro ${Action} CMD file
 !macroend
 
-; The winc.<type> ProgID is not listed under any type. Earlier versions listed it in the type's
-; OpenWithProgids, and a user who then chose winc as the default program has a choice that names
+; The differ.<type> ProgID is not listed under any type. Earlier versions listed it in the type's
+; OpenWithProgids, and a user who then chose differ as the default program has a choice that names
 ; this ProgID; keeping it keeps that choice working.
-; The verb under SystemFileAssociations adds "Open with Winc" to the type's context menu without
+; The verb under SystemFileAssociations adds "Open with Differ" to the type's context menu without
 ; changing its default program. Windows 11 shows it under "Show more options".
 ; The ProgID carries the type's own document icon. Explorer shows it for a type whose chosen program
-; is this ProgID; a choice made through "Open with" names winc.exe instead and shows its icon.
+; is this ProgID; a choice made through "Open with" names differ.exe instead and shows its icon.
 !macro RegisterFileType Type Icon
-  WriteRegStr HKCU "Software\Classes\Applications\winc.exe\SupportedTypes" ".${Type}" ""
-  WriteRegStr HKCU "Software\Classes\winc.${Type}" "" "${Type} File"
-  WriteRegStr HKCU "Software\Classes\winc.${Type}\DefaultIcon" "" "$INSTDIR\icons\${Icon}.ico"
-  WriteRegStr HKCU "Software\Classes\winc.${Type}\shell\open\command" "" '"$INSTDIR\winc.exe" "%1"'
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\winc" "" "$(OpenFileVerb)"
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\winc" "Icon" "$INSTDIR\winc.exe,0"
-  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\winc\command" "" '"$INSTDIR\winc.exe" "%1"'
+  WriteRegStr HKCU "Software\Classes\Applications\differ.exe\SupportedTypes" ".${Type}" ""
+  WriteRegStr HKCU "Software\Classes\differ.${Type}" "" "${Type} File"
+  WriteRegStr HKCU "Software\Classes\differ.${Type}\DefaultIcon" "" "$INSTDIR\icons\${Icon}.ico"
+  WriteRegStr HKCU "Software\Classes\differ.${Type}\shell\open\command" "" '"$INSTDIR\differ.exe" "%1"'
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\differ" "" "$(OpenFileVerb)"
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\differ" "Icon" "$INSTDIR\differ.exe,0"
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\differ\command" "" '"$INSTDIR\differ.exe" "%1"'
 !macroend
 
 ; Removes the entry earlier versions added to the type's OpenWithProgids. A new handler listed there
 ; makes Windows ask which program to use the next time such a file is opened.
 !macro UnlistFileType Type Icon
-  DeleteRegValue HKCU "Software\Classes\.${Type}\OpenWithProgids" "winc.${Type}"
+  DeleteRegValue HKCU "Software\Classes\.${Type}\OpenWithProgids" "differ.${Type}"
   DeleteRegKey /ifempty HKCU "Software\Classes\.${Type}\OpenWithProgids"
   DeleteRegKey /ifempty HKCU "Software\Classes\.${Type}"
 !macroend
 
 ; Lists the ProgID under the type, on the user's request (the optional "file types" section). The
-; type's default program is not changed; choosing winc for it then shows the type's document icon.
+; type's default program is not changed; choosing differ for it then shows the type's document icon.
 !macro ListFileType Type Icon
-  WriteRegStr HKCU "Software\Classes\.${Type}\OpenWithProgids" "winc.${Type}" ""
+  WriteRegStr HKCU "Software\Classes\.${Type}\OpenWithProgids" "differ.${Type}" ""
 !macroend
 
 !macro UnregisterFileType Type Icon
   !insertmacro UnlistFileType ${Type} ${Icon}
-  DeleteRegKey HKCU "Software\Classes\winc.${Type}"
-  DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\winc"
+  DeleteRegKey HKCU "Software\Classes\differ.${Type}"
+  DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell\differ"
   DeleteRegKey /ifempty HKCU "Software\Classes\SystemFileAssociations\.${Type}\shell"
   DeleteRegKey /ifempty HKCU "Software\Classes\SystemFileAssociations\.${Type}"
 !macroend
 
-; "Open in Winc" on a folder and on the empty space inside one (also the desktop); %V is that folder.
+; "Open in Differ" on a folder and on the empty space inside one (also the desktop); %V is that folder.
 !macro RegisterFolderVerb Key
-  WriteRegStr HKCU "Software\Classes\${Key}\shell\winc" "" "$(OpenFolderVerb)"
-  WriteRegStr HKCU "Software\Classes\${Key}\shell\winc" "Icon" "$INSTDIR\winc.exe,0"
-  WriteRegStr HKCU "Software\Classes\${Key}\shell\winc\command" "" '"$INSTDIR\winc.exe" "%V"'
+  WriteRegStr HKCU "Software\Classes\${Key}\shell\differ" "" "$(OpenFolderVerb)"
+  WriteRegStr HKCU "Software\Classes\${Key}\shell\differ" "Icon" "$INSTDIR\differ.exe,0"
+  WriteRegStr HKCU "Software\Classes\${Key}\shell\differ\command" "" '"$INSTDIR\differ.exe" "%V"'
 !macroend
 
 !macro UnregisterFolderVerb Key
-  DeleteRegKey HKCU "Software\Classes\${Key}\shell\winc"
+  DeleteRegKey HKCU "Software\Classes\${Key}\shell\differ"
 !macroend
 
-; The winc: URL scheme: winc://file/<absolute path>[:line[:column]] opens a file or folder in winc,
+; The winc: URL scheme: winc://file/<absolute path>[:line[:column]] opens a file or folder in differ,
 ; which receives the whole link as its argument.
 !macro RegisterUrlScheme
-  WriteRegStr HKCU "Software\Classes\winc" "" "URL:Winc"
+  WriteRegStr HKCU "Software\Classes\winc" "" "URL:Differ"
   WriteRegStr HKCU "Software\Classes\winc" "URL Protocol" ""
-  WriteRegStr HKCU "Software\Classes\winc\DefaultIcon" "" "$INSTDIR\winc.exe,0"
-  WriteRegStr HKCU "Software\Classes\winc\shell\open\command" "" '"$INSTDIR\winc.exe" "%1"'
+  WriteRegStr HKCU "Software\Classes\winc\DefaultIcon" "" "$INSTDIR\differ.exe,0"
+  WriteRegStr HKCU "Software\Classes\winc\shell\open\command" "" '"$INSTDIR\differ.exe" "%1"'
 !macroend
 
 ; SHCNE_ASSOCCHANGED: the shell refreshes its icons and "Open with" lists.
@@ -202,7 +202,7 @@ LangString OpenFolderVerb ${LANG_SIMPCHINESE} "在 Winc 中打开"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 !macroend
 
-; Adds the command-line launchers to the user's Path or removes them. A failure leaves winc usable.
+; Adds the command-line launchers to the user's Path or removes them. A failure leaves differ usable.
 !macro UpdateUserPath ACTION
   InitPluginsDir
   File "/oname=$PLUGINSDIR\path.ps1" "${SOURCE}\path.ps1"
@@ -210,7 +210,7 @@ LangString OpenFolderVerb ${LANG_SIMPCHINESE} "在 Winc 中打开"
   Pop $0
 !macroend
 
-; These files belong to processes that exit shortly after winc does, so they can still be open:
+; These files belong to processes that exit shortly after differ does, so they can still be open:
 ; winc-watch inside a WSL distribution, OpenConsole.exe and conpty.dll with a closing terminal.
 ; Waits up to 5 s; a file that stays open keeps the old copy until the next update.
 !macro InstallRetrying NAME
@@ -242,11 +242,11 @@ LangString OpenFolderVerb ${LANG_SIMPCHINESE} "在 Winc 中打开"
   retry_deleted_${RETRY}:
 !macroend
 
-Section "Winc" SEC_MAIN
+Section "Differ" SEC_MAIN
   SectionIn RO
   SetShellVarContext current
   SetOutPath "$INSTDIR"
-  File "${SOURCE}\winc.exe"
+  File "${SOURCE}\differ.exe"
   File "${SOURCE}\winc-pty.exe"
   !insertmacro InstallRetrying "OpenConsole.exe"
   !insertmacro InstallRetrying "conpty.dll"
@@ -258,29 +258,29 @@ Section "Winc" SEC_MAIN
   File "${SOURCE}\NOTICE"
   File "${SOURCE}\nsis\winc-installation"
   SetOutPath "$INSTDIR\bin"
-  File "${SOURCE}\bin\winc"
-  File "${SOURCE}\bin\winc.cmd"
+  File "${SOURCE}\bin\differ"
+  File "${SOURCE}\bin\differ.cmd"
   SetOutPath "$INSTDIR\icons"
   File "${SOURCE}\icons\*.ico"
   SetOutPath "$INSTDIR"
   !insertmacro UpdateUserPath "Add"
   WriteUninstaller "$INSTDIR\uninstall.exe"
-  WriteRegStr HKCU "Software\DEEIX\winc" "InstallDir" "$INSTDIR"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "DisplayName" "Winc"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "Publisher" "DEEIX"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "DisplayIcon" "$INSTDIR\winc.ico"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "QuietUninstallString" '$\"$INSTDIR\uninstall.exe$\" /S'
-  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "NoModify" 1
-  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc" "NoRepair" 1
-  ; The Start menu shows a shortcut's file name, and creating Winc.lnk over an existing winc.lnk
+  WriteRegStr HKCU "Software\Differ" "InstallDir" "$INSTDIR"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "DisplayName" "Differ"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "Publisher" "Differ"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "DisplayIcon" "$INSTDIR\winc.ico"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "QuietUninstallString" '$\"$INSTDIR\uninstall.exe$\" /S'
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "NoModify" 1
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ" "NoRepair" 1
+  ; The Start menu shows a shortcut's file name, and creating Differ.lnk over an existing differ.lnk
   ; keeps the existing file name, so any shortcut of that name is removed first.
-  Delete "$SMPROGRAMS\winc.lnk"
-  CreateShortcut "$SMPROGRAMS\Winc.lnk" "$INSTDIR\winc.exe" "" "$INSTDIR\winc.ico"
-  WriteRegStr HKCU "Software\Classes\Applications\winc.exe" "FriendlyAppName" "Winc"
-  WriteRegStr HKCU "Software\Classes\Applications\winc.exe\DefaultIcon" "" "$INSTDIR\winc.exe,0"
-  WriteRegStr HKCU "Software\Classes\Applications\winc.exe\shell\open\command" "" '"$INSTDIR\winc.exe" "%1"'
+  Delete "$SMPROGRAMS\differ.lnk"
+  CreateShortcut "$SMPROGRAMS\Differ.lnk" "$INSTDIR\differ.exe" "" "$INSTDIR\winc.ico"
+  WriteRegStr HKCU "Software\Classes\Applications\differ.exe" "FriendlyAppName" "Differ"
+  WriteRegStr HKCU "Software\Classes\Applications\differ.exe\DefaultIcon" "" "$INSTDIR\differ.exe,0"
+  WriteRegStr HKCU "Software\Classes\Applications\differ.exe\shell\open\command" "" '"$INSTDIR\differ.exe" "%1"'
   !insertmacro ForEachRetiredFileType UnregisterFileType
   !insertmacro ForEachFileType UnlistFileType
   !insertmacro ForEachFileType RegisterFileType
@@ -288,14 +288,14 @@ Section "Winc" SEC_MAIN
   !insertmacro RegisterFolderVerb "Directory\Background"
   !insertmacro RegisterUrlScheme
   ; The optional section below records the choice again when it is selected.
-  DeleteRegValue HKCU "Software\DEEIX\winc" "FileTypes"
+  DeleteRegValue HKCU "Software\Differ" "FileTypes"
   !insertmacro NotifyAssociationsChanged
 SectionEnd
 
 ; Off by default: a handler listed under a type makes Windows ask which program to use.
 Section /o "$(FileTypesSection)" SEC_FILE_TYPES
   !insertmacro ForEachFileType ListFileType
-  WriteRegDWORD HKCU "Software\DEEIX\winc" "FileTypes" 1
+  WriteRegDWORD HKCU "Software\Differ" "FileTypes" 1
   !insertmacro NotifyAssociationsChanged
 SectionEnd
 
@@ -306,7 +306,7 @@ SectionEnd
 ; The earlier choice is kept: updates run silently and show no page. /FILETYPES=1 or /FILETYPES=0 on
 ; the command line, before /D, sets it for a silent installation.
 Function .onInit
-  ReadRegDWORD $0 HKCU "Software\DEEIX\winc" "FileTypes"
+  ReadRegDWORD $0 HKCU "Software\Differ" "FileTypes"
   ${GetParameters} $1
   ClearErrors
   ${GetOptions} $1 "/FILETYPES=" $2
@@ -320,8 +320,8 @@ FunctionEnd
 
 Section "Uninstall"
   SetShellVarContext current
-  Delete "$SMPROGRAMS\Winc.lnk"
-  Delete "$INSTDIR\winc.exe"
+  Delete "$SMPROGRAMS\Differ.lnk"
+  Delete "$INSTDIR\differ.exe"
   Delete "$INSTDIR\winc-pty.exe"
   !insertmacro DeleteRetrying "OpenConsole.exe"
   !insertmacro DeleteRetrying "conpty.dll"
@@ -334,19 +334,19 @@ Section "Uninstall"
   Delete "$INSTDIR\NOTICE"
   Delete "$INSTDIR\uninstall.exe"
   !insertmacro UpdateUserPath "Remove"
-  Delete "$INSTDIR\bin\winc"
-  Delete "$INSTDIR\bin\winc.cmd"
+  Delete "$INSTDIR\bin\differ"
+  Delete "$INSTDIR\bin\differ.cmd"
   RMDir "$INSTDIR\bin"
   Delete "$INSTDIR\icons\*.ico"
   RMDir "$INSTDIR\icons"
   RMDir "$INSTDIR"
-  DeleteRegKey HKCU "Software\DEEIX\winc"
-  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\winc"
+  DeleteRegKey HKCU "Software\Differ"
+  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\differ"
   !insertmacro ForEachFileType UnregisterFileType
   !insertmacro ForEachRetiredFileType UnregisterFileType
   !insertmacro UnregisterFolderVerb "Directory"
   !insertmacro UnregisterFolderVerb "Directory\Background"
-  DeleteRegKey HKCU "Software\Classes\Applications\winc.exe"
+  DeleteRegKey HKCU "Software\Classes\Applications\differ.exe"
   DeleteRegKey HKCU "Software\Classes\winc"
   !insertmacro NotifyAssociationsChanged
 SectionEnd

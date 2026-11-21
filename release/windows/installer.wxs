@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Types winc can open, listed under Applications\winc.exe\SupportedTypes: winc appears in
+<!-- Types differ can open, listed under Applications\differ.exe\SupportedTypes: differ appears in
      "Open with" > "Choose another app" for them. Nothing is written under the types themselves
      unless the optional FileTypes feature is installed, so Windows keeps their default program and
      icon and does not ask which program to use. Keep this
@@ -24,9 +24,9 @@
 <?define IconNames = markdown;json;config;markup;style;script;table;text;javascript;typescript;python;rust;go;c;code;file?>
 <?define FileTypes = $(var.MarkdownTypes);$(var.JsonTypes);$(var.ConfigTypes);$(var.MarkupTypes);$(var.StyleTypes);$(var.ScriptTypes);$(var.TableTypes);$(var.TextTypes);$(var.JavascriptTypes);$(var.TypescriptTypes);$(var.PythonTypes);$(var.RustTypes);$(var.GoTypes);$(var.CTypes);$(var.CodeTypes)?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <!-- UUIDv5(DNS, com.deeix.winc); keep this product family stable across releases. -->
-  <Product Id="*" Name="Winc" Language="1033" Version="$(var.Version)" Manufacturer="DEEIX"
-           UpgradeCode="00FDC6A5-D527-59AE-B4A5-E051B25222F3">
+  <!-- UUIDv5(DNS, io.github.goodboykeeny.differ); keep this product family stable across releases. -->
+  <Product Id="*" Name="Differ" Language="1033" Version="$(var.Version)" Manufacturer="Differ"
+           UpgradeCode="009926D8-FD42-5306-AF73-1AAC39CC9206">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64"/>
     <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallInitialize"/>
     <Property Id="REINSTALLMODE" Value="amus"/>
@@ -38,9 +38,9 @@
     <UIRef Id="WixUI_InstallDir"/>
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="winc">
+        <Directory Id="INSTALLFOLDER" Name="Differ">
           <Component Id="Application" Guid="*" Win64="yes">
-            <File Id="WincExe" Source="$(var.Source)\winc.exe" KeyPath="yes"/>
+            <File Id="DifferExe" Source="$(var.Source)\differ.exe" KeyPath="yes"/>
           </Component>
           <Component Id="TerminalHelper" Guid="*" Win64="yes">
             <File Source="$(var.Source)\winc-pty.exe" KeyPath="yes"/>
@@ -52,114 +52,114 @@
             <File Source="$(var.Source)\OpenConsole.exe" KeyPath="yes"/>
           </Component>
           <Component Id="WslWatcher" Guid="*" Win64="yes">
-            <File Id="WincWatch" Source="$(var.Source)\winc-watch" KeyPath="yes"/>
+            <File Id="DifferWatch" Source="$(var.Source)\winc-watch" KeyPath="yes"/>
           </Component>
           <Component Id="RemoteServerX64" Guid="*" Win64="yes">
-            <File Id="WincServerX64" Source="$(var.Source)\winc-server-Linux-x86_64" KeyPath="yes"/>
+            <File Id="DifferServerX64" Source="$(var.Source)\winc-server-Linux-x86_64" KeyPath="yes"/>
           </Component>
           <Component Id="RemoteServerArm64" Guid="*" Win64="yes">
-            <File Id="WincServerArm64" Source="$(var.Source)\winc-server-Linux-aarch64" KeyPath="yes"/>
+            <File Id="DifferServerArm64" Source="$(var.Source)\winc-server-Linux-aarch64" KeyPath="yes"/>
           </Component>
           <Component Id="InstallationKind" Guid="*" Win64="yes">
             <File Source="$(var.Source)\msi\winc-installation" KeyPath="yes"/>
           </Component>
           <Component Id="FileAssociations" Guid="*" Win64="yes">
-            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\winc.exe" Name="FriendlyAppName" Value="Winc" Type="string" KeyPath="yes"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\winc.exe\DefaultIcon" Value="[#WincExe],0" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\winc.exe\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\differ.exe" Name="FriendlyAppName" Value="Differ" Type="string" KeyPath="yes"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\differ.exe\DefaultIcon" Value="[#DifferExe],0" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\differ.exe\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <!-- The shell reads only the value names of SupportedTypes. An empty value means Null to
-                 Windows Installer, so these hold a placeholder. The winc.<type> ProgID is not listed
-                 under any type; it stays for users who chose winc as the default program while
+                 Windows Installer, so these hold a placeholder. The differ.<type> ProgID is not listed
+                 under any type; it stays for users who chose differ as the default program while
                  earlier versions listed it, whose choice names this ProgID. -->
             <?foreach Type in $(var.FileTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\winc.exe\SupportedTypes" Name=".$(var.Type)" Value="winc" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Applications\differ.exe\SupportedTypes" Name=".$(var.Type)" Value="differ" Type="string"/>
             <?endforeach?>
             <!-- Each ProgID carries its type's document icon. Explorer shows it for a type whose
-                 chosen program is this ProgID; a choice made through "Open with" names winc.exe
+                 chosen program is this ProgID; a choice made through "Open with" names differ.exe
                  instead and shows its icon. -->
             <?foreach Type in $(var.MarkdownTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_markdown]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_markdown]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.JsonTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_json]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_json]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.ConfigTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_config]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_config]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.MarkupTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_markup]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_markup]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.StyleTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_style]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_style]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.ScriptTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_script]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_script]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.TableTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_table]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_table]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.TextTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_text]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_text]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.JavascriptTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_javascript]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_javascript]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.TypescriptTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_typescript]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_typescript]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.PythonTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_python]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_python]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.RustTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_rust]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_rust]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.GoTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_go]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_go]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.CTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_c]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_c]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
             <?foreach Type in $(var.CodeTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)" Value="$(var.Type) File" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\DefaultIcon" Value="[#Icon_code]" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc.$(var.Type)\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)" Value="$(var.Type) File" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\DefaultIcon" Value="[#Icon_code]" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\differ.$(var.Type)\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
           </Component>
           <!-- Optional, off by default: lists the ProgIDs under the types. A handler listed there
                makes Windows ask which program to use. Install with ADDLOCAL=Main,FileTypes. -->
           <Component Id="FileTypeListing" Guid="*" Win64="yes">
-            <RegistryValue Root="HKLM" Key="Software\DEEIX\winc\MSI" Name="File Types" Type="integer" Value="1" KeyPath="yes"/>
+            <RegistryValue Root="HKLM" Key="Software\Differ\MSI" Name="File Types" Type="integer" Value="1" KeyPath="yes"/>
             <!-- The shell reads only the value names; the data is a placeholder, as above. -->
             <?foreach Type in $(var.FileTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\.$(var.Type)\OpenWithProgids" Name="winc.$(var.Type)" Value="winc" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\.$(var.Type)\OpenWithProgids" Name="differ.$(var.Type)" Value="differ" Type="string"/>
             <?endforeach?>
           </Component>
           <Directory Id="ICONSFOLDER" Name="icons">
@@ -169,40 +169,40 @@
             </Component>
             <?endforeach?>
           </Directory>
-          <!-- Explorer context menu: "Open with Winc" on the supported types, added under
-               SystemFileAssociations so their default program stays unchanged, and "Open in Winc" on
+          <!-- Explorer context menu: "Open with Differ" on the supported types, added under
+               SystemFileAssociations so their default program stays unchanged, and "Open in Differ" on
                a folder and on the empty space inside one (also the desktop), where %V is that folder.
                Windows 11 shows these under "Show more options". -->
           <Component Id="ContextMenu" Guid="*" Win64="yes">
-            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\shell\winc" Value="Open in Winc" Type="string" KeyPath="yes"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\shell\winc" Name="Icon" Value="[#WincExe],0" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\shell\winc\command" Value="&quot;[#WincExe]&quot; &quot;%V&quot;" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\Background\shell\winc" Value="Open in Winc" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\Background\shell\winc" Name="Icon" Value="[#WincExe],0" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\Background\shell\winc\command" Value="&quot;[#WincExe]&quot; &quot;%V&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\shell\differ" Value="Open in Differ" Type="string" KeyPath="yes"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\shell\differ" Name="Icon" Value="[#DifferExe],0" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\shell\differ\command" Value="&quot;[#DifferExe]&quot; &quot;%V&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\Background\shell\differ" Value="Open in Differ" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\Background\shell\differ" Name="Icon" Value="[#DifferExe],0" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\Directory\Background\shell\differ\command" Value="&quot;[#DifferExe]&quot; &quot;%V&quot;" Type="string"/>
             <?foreach Type in $(var.FileTypes)?>
-            <RegistryValue Root="HKLM" Key="Software\Classes\SystemFileAssociations\.$(var.Type)\shell\winc" Value="Open with Winc" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\SystemFileAssociations\.$(var.Type)\shell\winc" Name="Icon" Value="[#WincExe],0" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\SystemFileAssociations\.$(var.Type)\shell\winc\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\SystemFileAssociations\.$(var.Type)\shell\differ" Value="Open with Differ" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\SystemFileAssociations\.$(var.Type)\shell\differ" Name="Icon" Value="[#DifferExe],0" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\SystemFileAssociations\.$(var.Type)\shell\differ\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
             <?endforeach?>
           </Component>
           <!-- The winc: URL scheme: winc://file/<absolute path>[:line[:column]] opens a file or
-               folder in winc, which receives the whole link as its argument. The shell checks only
+               folder in differ, which receives the whole link as its argument. The shell checks only
                that "URL Protocol" exists; an empty value means Null to Windows Installer, so it
                holds a placeholder. -->
           <Component Id="UrlScheme" Guid="*" Win64="yes">
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc" Value="URL:Winc" Type="string" KeyPath="yes"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc" Name="URL Protocol" Value="winc" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc\DefaultIcon" Value="[#WincExe],0" Type="string"/>
-            <RegistryValue Root="HKLM" Key="Software\Classes\winc\shell\open\command" Value="&quot;[#WincExe]&quot; &quot;%1&quot;" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\winc" Value="URL:Differ" Type="string" KeyPath="yes"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\winc" Name="URL Protocol" Value="differ" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\winc\DefaultIcon" Value="[#DifferExe],0" Type="string"/>
+            <RegistryValue Root="HKLM" Key="Software\Classes\winc\shell\open\command" Value="&quot;[#DifferExe]&quot; &quot;%1&quot;" Type="string"/>
           </Component>
           <Directory Id="BINFOLDER" Name="bin">
             <Component Id="CommandLine" Guid="*" Win64="yes">
-              <File Id="WincLauncher" Source="$(var.Source)\bin\winc" KeyPath="yes"/>
-              <Environment Id="WincPath" Name="PATH" Value="[BINFOLDER]" Action="set" Part="last" System="yes" Permanent="no"/>
+              <File Id="DifferLauncher" Source="$(var.Source)\bin\differ" KeyPath="yes"/>
+              <Environment Id="DifferPath" Name="PATH" Value="[BINFOLDER]" Action="set" Part="last" System="yes" Permanent="no"/>
             </Component>
             <Component Id="CommandLineCmd" Guid="*" Win64="yes">
-              <File Id="WincLauncherCmd" Source="$(var.Source)\bin\winc.cmd" KeyPath="yes"/>
+              <File Id="DifferLauncherCmd" Source="$(var.Source)\bin\differ.cmd" KeyPath="yes"/>
             </Component>
           </Directory>
           <Component Id="License" Guid="*" Win64="yes"><File Source="$(var.Source)\LICENSE" KeyPath="yes"/></Component>
@@ -210,16 +210,16 @@
         </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="Winc">
+        <Directory Id="ApplicationProgramsFolder" Name="Differ">
           <Component Id="StartMenu" Guid="*" Win64="yes">
-            <Shortcut Id="StartMenuShortcut" Name="Winc" Target="[#WincExe]" WorkingDirectory="INSTALLFOLDER" Icon="WincIcon"/>
+            <Shortcut Id="StartMenuShortcut" Name="Differ" Target="[#DifferExe]" WorkingDirectory="INSTALLFOLDER" Icon="WincIcon"/>
             <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-            <RegistryValue Root="HKCU" Key="Software\DEEIX\winc\MSI" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
+            <RegistryValue Root="HKCU" Key="Software\Differ\MSI" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
           </Component>
         </Directory>
       </Directory>
     </Directory>
-    <Feature Id="Main" Title="winc" Level="1">
+    <Feature Id="Main" Title="differ" Level="1">
       <ComponentRef Id="Application"/><ComponentRef Id="TerminalHelper"/><ComponentRef Id="InstallationKind"/>
       <ComponentRef Id="ConptyLibrary"/><ComponentRef Id="ConsoleHost"/>
       <ComponentRef Id="FileAssociations"/><ComponentRef Id="ContextMenu"/><ComponentRef Id="UrlScheme"/>

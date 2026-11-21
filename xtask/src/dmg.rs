@@ -1,4 +1,4 @@
-//! 打包（`cargo xtask dmg`）：macOS 的 winc.app 和安装用的 dmg，含应用图标、dmg 窗口的背景和布局。
+//! 打包（`cargo xtask dmg`）：macOS 的 Differ.app 和安装用的 dmg，含应用图标、dmg 窗口的背景和布局。
 
 use std::fs::File;
 use std::io::BufWriter;
@@ -14,15 +14,20 @@ mod finder;
 /// 应用的标识。
 ///
 /// 系统按这个标识区分应用（权限、默认打开方式、Launch Services）。
-const BUNDLE_ID: &str = "com.deeix.winc";
+const BUNDLE_ID: &str = "io.github.goodboykeeny.differ";
 
 /// 应用的显示名：菜单栏、访达、程序坞、「打开方式」和更新窗口里写的名字，也是 dmg 的卷名。
 ///
-/// 应用包（`winc.app`）、可执行文件和命令行命令仍是小写的 `winc`；访达按 `CFBundleDisplayName`
-/// 显示应用的名字，不显示包名。
+/// 命令行命令仍是小写的 `winc`。
 const APP_NAME: &str = "Differ";
 
-/// 构建 release，组成临时签名（ad-hoc）的 `target/release/bundle/winc.app`，返回应用的路径和
+/// 应用包的目录名。
+const APP_BUNDLE: &str = "Differ.app";
+
+/// 应用包里主程序的文件名（`crates/winc` 的 `differ` 目标），也是 `CFBundleExecutable` 的值。
+const EXECUTABLE: &str = "differ";
+
+/// 构建 release，组成临时签名（ad-hoc）的 `target/release/bundle/Differ.app`，返回应用的路径和
 /// 版本号。
 ///
 /// 应用包里有主程序、终端的辅助进程 `winc-pty`、应用内更新用的 `Sparkle.framework` 和图标。
@@ -60,14 +65,18 @@ pub fn app(target: Option<&str>, prebuilt: bool) -> Result<(PathBuf, String), St
     );
     let bundle = built.join("bundle");
     let version = winc_version::VERSION;
-    let app = bundle.join("winc.app");
+    let app = bundle.join(APP_BUNDLE);
     let _ = std::fs::remove_dir_all(&bundle);
     let contents = app.join("Contents");
     std::fs::create_dir_all(contents.join("MacOS")).map_err(io)?;
     std::fs::create_dir_all(contents.join("Resources")).map_err(io)?;
     // 终端模块的辅助进程和主程序放在一起，主程序按自身旁边的位置查找辅助进程。
     let helper = contents.join("MacOS/winc-pty");
-    std::fs::copy(built.join("winc"), contents.join("MacOS/winc")).map_err(io)?;
+    std::fs::copy(
+        built.join(EXECUTABLE),
+        contents.join("MacOS").join(EXECUTABLE),
+    )
+    .map_err(io)?;
     std::fs::copy(built.join("winc-pty"), &helper).map_err(io)?;
     // 主程序不链接 Sparkle，运行时从 `Contents/Frameworks` 加载；没有更新配置时也带着。
     sparkle::embed(&contents)?;
@@ -132,7 +141,7 @@ fn mac_arch(arch: &str) -> &str {
 pub fn app_arch(app: &Path) -> Result<String, String> {
     let output = Command::new("lipo")
         .arg("-archs")
-        .arg(app.join("Contents/MacOS/winc"))
+        .arg(app.join("Contents/MacOS").join(EXECUTABLE))
         .output()
         .map_err(|e| format!("无法运行 lipo：{e}"))?;
     if !output.status.success() {
@@ -173,16 +182,16 @@ const ICON_SIZE: f64 = 128.0;
 /// 图标下面名字的字号（点）。
 #[cfg(unix)]
 const TEXT_SIZE: f64 = 12.0;
-/// winc.app 的图标中心（内容区坐标，点）。
+/// Differ.app 的图标中心（内容区坐标，点）。
 ///
 /// 比内容区的正中稍高，连同下面的名字整体在视觉上居中。
 const APP_AT: (u32, u32) = (160, 186);
 /// 「应用程序」替身的图标中心；背景上的箭头画在两个图标正中间。
 const APPLICATIONS_AT: (u32, u32) = (480, 186);
-/// 构建 release 版 `winc.app` 和 `.dmg`，只在 macOS 上可用。
+/// 构建 release 版 `Differ.app` 和 `.dmg`，只在 macOS 上可用。
 ///
 /// 签名是本机临时签名（ad-hoc），没有公证，从网上下载的副本首次打开需要用户放行。`signed` 是
-/// 已经用 Developer ID 签好名的 winc.app：给出时不构建、不重新签名，校验后原样装进 dmg。
+/// 已经用 Developer ID 签好名的 Differ.app：给出时不构建、不重新签名，校验后原样装进 dmg。
 ///
 /// # Errors
 ///
@@ -258,7 +267,7 @@ pub fn dmg(signed: Option<&Path>, output: Option<&Path>) -> Result<(), String> {
         .arg(&writable))?;
 
     let image = output.map_or_else(
-        || release.join(format!("winc-{version}-{arch}.dmg")),
+        || release.join(format!("Differ-{version}-{arch}.dmg")),
         Path::to_path_buf,
     );
     if let Some(parent) = image.parent() {
@@ -311,7 +320,7 @@ fn fill_volume(volume: &Path, app: &Path, background: &Path, icon: &Path) -> Res
 
     let io = |e: std::io::Error| e.to_string();
     // `ditto` 原样保留签名和扩展属性。
-    run(Command::new("ditto").arg(app).arg(volume.join("winc.app")))?;
+    run(Command::new("ditto").arg(app).arg(volume.join(APP_BUNDLE)))?;
     std::os::unix::fs::symlink("/Applications", volume.join("Applications")).map_err(io)?;
     let hidden = volume.join(".background");
     std::fs::create_dir(&hidden).map_err(io)?;
@@ -321,10 +330,10 @@ fn fill_volume(volume: &Path, app: &Path, background: &Path, icon: &Path) -> Res
     let volume_icon = volume.join(".VolumeIcon.icns");
     std::fs::copy(icon, &volume_icon).map_err(io)?;
     // 卷根目录的 `.metadata_never_index` 使聚焦（Spotlight）不为挂载后的卷建立索引，卷中的
-    // winc.app 不会经由索引登记为应用，「打开方式」等列表中不出现安装包内的副本。
+    // Differ.app 不会经由索引登记为应用，「打开方式」等列表中不出现安装包内的副本。
     let never_index = volume.join(".metadata_never_index");
     std::fs::write(&never_index, b"").map_err(io)?;
-    // 不给 winc.app 设「隐藏扩展名」：该标志存在包根目录的文件信息里，装到「应用程序」以后
+    // 不给 Differ.app 设「隐藏扩展名」：该标志存在包根目录的文件信息里，装到「应用程序」以后
     // `codesign --verify --strict` 会把这个标志当成多余的附加数据而判定签名无效。
     set_finder_flags(volume, HAS_CUSTOM_ICON)?;
     // 打开「显示隐藏文件」后仍不显示 `.background`、`.VolumeIcon.icns` 和
@@ -383,7 +392,7 @@ fn fill_volume(volume: &Path, app: &Path, background: &Path, icon: &Path) -> Res
         // 用图标视图打开。
         root(b"vstl", Value::Type(*b"icnv")),
         root(b"vSrn", Value::Long(1)),
-        Record::icon_at("winc.app", APP_AT),
+        Record::icon_at(APP_BUNDLE, APP_AT),
         Record::icon_at("Applications", APPLICATIONS_AT),
     ])?;
     std::fs::write(volume.join(".DS_Store"), store).map_err(io)?;
@@ -715,7 +724,7 @@ fn info_plist(version: &str, updates: &sparkle::UpdateConfig, arch: &str) -> Str
 	<key>CFBundleDisplayName</key>
 	<string>{APP_NAME}</string>
 	<key>CFBundleExecutable</key>
-	<string>winc</string>
+	<string>{EXECUTABLE}</string>
 	<key>CFBundleIconFile</key>
 	<string>{ICON_NAME}</string>
 	<key>CFBundleIdentifier</key>

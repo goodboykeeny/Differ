@@ -126,7 +126,8 @@ fn appimage_placement(appimage: &std::path::Path, home: &std::path::Path) -> Opt
 /// 视为可替换，这类链接是应用移动后的遗留。
 #[cfg(unix)]
 fn is_ours(placement: &Placement, found: &std::path::Path) -> bool {
-    let bundled = found.ends_with("Contents/MacOS/winc");
+    let bundled =
+        found.ends_with("Contents/MacOS/differ") || found.ends_with("Contents/MacOS/winc");
     let appimage = found.extension().is_some_and(|e| e == "AppImage");
     found.is_absolute() && (found == placement.target || bundled || appimage || !found.exists())
 }
