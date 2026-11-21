@@ -263,6 +263,7 @@ impl App {
         self.git.commit.scroll = 0.0;
         self.git.commit.clear_selection();
         self.git.commit.forget_dirs();
+        self.tasks_folder_changed();
         self.overlays.picker.index.cancel();
         self.overlays.picker.index = FileIndex::default();
         self.jumps.definitions = None;

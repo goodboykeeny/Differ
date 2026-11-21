@@ -158,7 +158,7 @@ impl App {
     fn task_roots(&self) -> Vec<PathBuf> {
         if self.config.task_roots.is_empty() {
             return (self.editor.workspace.iter())
-                .map(|w| w.root.clone())
+                .flat_map(|w| w.folders().map(Path::to_path_buf))
                 .collect();
         }
         let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
@@ -181,6 +181,28 @@ impl App {
             self.scan_tasks();
         }
         self.request_redraw();
+    }
+
+    /// 打开的目录换了之后：任务是从打开的目录里找的（没有配置查找目录）时，丢掉旧目录的任务，
+    /// 任务视图正显示着就重新查找。
+    pub(in crate::app) fn tasks_folder_changed(&mut self) {
+        if !self.config.task_roots.is_empty() {
+            return;
+        }
+        let state = &mut self.tasks;
+        state.tasks.clear();
+        state.changes.clear();
+        (state.selected, state.current, state.reopen) = (None, None, None);
+        (state.scanned, state.loading, state.scroll) = (false, false, 0.0);
+        // 作废还在路上的结果。
+        state.changes_request += 1;
+        state.diff_request += 1;
+        if self.panels.sidebar.view == SidebarView::Tasks {
+            self.scan_tasks();
+        } else {
+            self.tasks.scan_request += 1;
+            self.tasks.scanning = false;
+        }
     }
 
     /// 在后台查找任务。
@@ -263,10 +285,8 @@ impl App {
                     self.reload_task_changes();
                 }
             }
-            TaskTarget::Refresh => {
-                self.scan_tasks();
-                self.reload_task_changes();
-            }
+            // 任务里的项目可能变了：查找完再重新读取改动（见 `poll_tasks`）。
+            TaskTarget::Refresh => self.scan_tasks(),
             TaskTarget::Back => {
                 self.tasks.selected = None;
                 self.tasks.changes.clear();
@@ -394,6 +414,7 @@ impl App {
                         self.tasks.changes.clear();
                         self.tasks.current = None;
                     }
+                    self.reload_task_changes();
                 }
                 TaskLoaded::Changes { request, changes } => {
                     if request != self.tasks.changes_request {
@@ -429,6 +450,8 @@ impl App {
                             let index = self.editor.show_diff_in(self.tasks.preview, &title, *view);
                             self.tasks.preview = Some(self.editor.documents[index].id);
                             self.tasks.current = Some(at);
+                            // 键盘跟着打开的差异走，不留在已经看不见的文件树上。
+                            self.focus = Focus::Editor;
                             self.reveal_task_file(at);
                             self.relayout();
                             self.clamp_scroll();

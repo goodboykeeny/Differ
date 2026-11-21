@@ -132,8 +132,13 @@ impl Git {
             let Some(branch) = head_branch(&root) else {
                 continue;
             };
+            // `.worktrees/baseline-…` 这样的目录是基线的工作树；仓库自己的目录名不算数。
+            let parked =
+                (root.parent().and_then(Path::file_name)).is_some_and(|n| n == ".worktrees");
             let folder = root.file_name().map(|n| n.to_string_lossy().into_owned());
-            if rules.is_baseline(&branch) || folder.is_some_and(|f| rules.is_baseline(&f)) {
+            if rules.is_baseline(&branch)
+                || (parked && folder.is_some_and(|f| rules.is_baseline(&f)))
+            {
                 continue;
             }
             // 同一个工作树经符号链接、不同写法的路径可能出现两次。
@@ -190,6 +195,10 @@ impl Git {
         }
         let mut command = self.command(root);
         command.args(["ls-files", "-z", "--others", "--exclude-standard"]);
+        // 还没有提交过时没有可比的提交：暂存了的文件也都是新增的。
+        if base.is_none() {
+            command.arg("--cached");
+        }
         let stdout = self.run(&mut command, STATUS_TIMEOUT, cancel)?;
         let known: HashSet<PathBuf> = files.iter().map(|f| f.path.clone()).collect();
         for name in stdout.split(|&b| b == 0).filter(|e| !e.is_empty()) {
