@@ -1,157 +1,58 @@
-<p align="center">
-  <img src="./crates/winc-app/assets/icon.svg" alt="winc" width="128" />
-</p>
+# Differ
 
-<h1 align="center">Winc</h1>
+[English](README.md) · 简体中文
 
-<p align="center">
-  更轻、更快、更顺手的桌面编辑器。
-</p>
+**一个任务，集中查看多个 Git 仓库的改动。**
 
-<p align="center">
-  <a href="./README.md">English</a> | 简体中文
-</p>
+一个需求可能同时改到后端、前端和部署配置。Differ 是一款桌面应用，按当前检出的分支名将本地 Git
+工作树归到同一个任务，让你不用来回切换仓库，就能审阅各个项目的改动。
 
-<p align="center">
-  <a href="https://winc.si"><img alt="Website" src="https://img.shields.io/badge/Website-winc.si-black" /></a>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue" /></a>
-  <img alt="Rust" src="https://img.shields.io/badge/Rust-2024-b7410e" />
-  <img alt="Platforms" src="https://img.shields.io/badge/Platforms-macOS%20%7C%20Linux%20%7C%20Windows-555" />
-</p>
+## 审阅任务
 
-<p align="center">
-  <a href="https://winc.si/#download"><img alt="下载 Winc" src="./.github/assets/download-zh.svg" /></a>
-</p>
+1. 打开存放各项目的目录，在侧栏选择「任务」。Differ 会扫描该目录、它的直属子目录及其中的
+   `.worktrees/` 目录，也会查找已发现仓库中登记的其他工作树。
+2. 选择任务分支，例如 `task-1042`。多个项目检出同名分支时，改动文件会集中列在同一任务下，按项目分组。
+   可用关键词筛选任务。
+3. 点击文件查看左右并排的差异。在同一个差异标签页里切换上一个或下一个文件，即可跨项目审阅。
 
-## 概述
-
-winc 以 Rust 与自研渲染引擎构建：0.1 秒启动，十万行代码仅占 52 MB 内存。多光标、查找替换、并排差异，
-每一次输入与滚动都即时响应。
-
-| 指标 | 结果 |
+| 范围 | 查看内容 |
 | --- | --- |
-| 冷启动到第一帧 | 119 ms（20 次的中位数） |
-| 打开 10 万行时的常驻内存 | 52 MB |
-| 1 GB 的文件，可编辑、有高亮 | 220 ms |
+| **全部改动** | 比较工作区与最近基线分支的合并基点，包含已提交和未提交的改动。没有可用的基线时，先尝试上游分支，再回退到 `HEAD`。 |
+| **未提交** | 比较工作区与 `HEAD`，包含已暂存、未暂存和未跟踪的文件。 |
 
-在 macOS 上测得，随硬件和系统负载略有不同。
+## 在 macOS 上从源码运行
 
-## 功能
+安装 Git、Xcode 命令行工具，并通过 [rustup](https://rustup.rs/) 安装 Rust。Rust 工具链版本由
+[`rust-toolchain.toml`](rust-toolchain.toml) 指定。
 
-| 方面 | 能力 |
-| --- | --- |
-| 编辑 | 多光标、查找替换、系统输入法，GB 级文件中流畅滚动，以及实验性的 Vim 模式 |
-| 语法 | 常见编程语言、标记语言、数据和配置格式的高亮，不依赖语言服务器的轻量跳转定义和查找用法 |
-| 格式化 | 调用 rustfmt、Prettier、Black、Ruff、gofmt 等外部工具整理整个文件 |
-| 预览 | Markdown（含公式和 Mermaid 图）、图片、SVG、PDF（macOS 和 Windows）、Word 文档（docx）、表格（xlsx、csv），随时切回源代码 |
-| Git | 并排差异（词级高亮）、按块暂存、提交和推送、提交图、逐行追溯 |
-| 项目 | 文件树、快速打开、遵循 `.gitignore` 的项目搜索 |
-| 终端 | 内置终端，支持自动加载项目内的 Python 虚拟环境 |
-| 远程 | 实验性的 SSH 远程：打开 Linux 主机上的目录，在其中编辑、搜索、格式化、使用 Git 和终端；Windows 上可打开 WSL 发行版中的目录 |
-| 界面 | 十六套内置主题，浅色、深色均有；完整的英文和简体中文界面 |
-| 模块 | Git、终端和 SSH 远程均可单独关闭；首次运行时在开始页设置外观、主题、语言和模块 |
-| 更新 | 三个平台都有签名的应用内更新，更新后可在应用内查看更新日志 |
-
-触摸屏支持点按按钮和定位光标、双击选词、单指滑动滚动，以及拖动滚动条和面板分隔条。
-Windows 上还可拖动标题栏移动窗口、双击标题栏最大化或还原，以及拖动窗口边缘改变大小。
-窗口拖动和边缘吸附与鼠标操作共用 Windows 原生行为。
-长按 500 毫秒打开当前位置的右键菜单。滑动始终作用于落指的区域，抬手后停止；多指接触会取消
-当前手势，所有手指离开后可继续操作。
-
-图片和 SVG 预览的缩放方式与 PDF 预览相同：按住 Ctrl（macOS 为 ⌘）滚动、触控板捏合，或按
-Ctrl/⌘ 加 `+`、`-`、`0`，缩放时鼠标所指的位置保持不动。放大后滚动或按住左键拖动查看，双击
-恢复适应窗口。SVG 分栏预览中的图片也支持这些操作。
-
-## 平台
-
-| 平台 | 要求 | 安装包 |
-| --- | --- | --- |
-| macOS | macOS 11 及以上，Apple 芯片或 Intel | 磁盘映像 |
-| Linux | x86_64，X11 或 Wayland | AppImage、deb、Arch 软件源 |
-| Windows | Windows 10 1809 及以上，x86_64 | NSIS、MSI、便携 ZIP |
-
-便携 ZIP 将设置和状态保存在 `winc.exe` 旁边的 `data` 目录中；删除该目录后改为保存在用户目录中。
-
-主要在 macOS 上开发和测试。可从 [winc.si](https://winc.si/#download) 下载，所有版本见
-[GitHub Releases](https://github.com/DEEIX-AI/Winc/releases)。
-
-## 命令行
-
-```bash
-winc .                  # 打开当前目录
-winc file.rs:12:5       # 打开文件并跳到指定的行和列
-winc --wait file        # 等标签关闭后再退出，例如作为 Git 的编辑器
-cargo build 2>&1 | winc -   # 读取标准输入
+```sh
+git clone --branch dev https://github.com/goodboykeeny/Differ.git
+cd Differ
+cargo run --locked --release -- "$HOME/Projects"
 ```
 
-Windows 安装包、Linux deb 包和 Arch 包会把 `winc` 加入 `PATH`；Windows 便携版不修改 `PATH`。macOS 请在菜单栏选择「Winc → 安装 winc 命令…」，或在命令面板中运行「Shell 命令：安装 winc 命令」；Linux AppImage 请使用命令面板。
+将 `"$HOME/Projects"` 换成存放你各个仓库的目录。编译后的可执行文件为 `target/release/differ`。
 
-在 macOS 上应用由系统启动，不继承 shell 的环境变量；需要保留时使用 `winc --new-instance`。
+## 配置任务扫描
 
-## 从源代码构建
+默认扫描当前打开的目录。如果希望每次都扫描固定目录，可在 macOS 的
+`~/Library/Application Support/differ/config.json` 中加入 `tasks` 配置：
 
-需要 Rust 1.99.1，`rust-toolchain.toml` 会自动选用工具链。
-
-```bash
-cargo run --release                 # 构建并运行
-cargo run --release -- <路径>        # 打开文件或目录
+```json
+{
+  "tasks": {
+    "roots": ["~/Projects"],
+    "keywords": ["bugfix", "task"],
+    "baselines": ["master", "main", "develop", "dev", "baseline-*"]
+  }
+}
 ```
 
-版本同步、签名配置和发布流程见[发布说明](release/README.md)。
+- `roots`：指定扫描目录。不设置时，扫描当前打开的目录。
+- `keywords`：设置任务筛选按钮。默认为 `bugfix` 和 `task`。
+- `baselines`：设置用于比较的基线分支。这些分支不出现在任务列表中。示例为默认配置，`*` 可匹配任意字符序列。
 
-## 开发
+## 致谢与许可证
 
-```bash
-cargo xtask test                    # 只测和 HEAD 相比改动涉及的 crate
-cargo xtask test --all              # 测整个 workspace
-cargo clippy --workspace --all-targets -- -D warnings
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
-cargo xtask bench                   # 测启动、内存、滚动，对照性能预算
-```
-
-界面由 Rust 编写，窗口用 winit，渲染由 winc 自己的 CPU 光栅化完成；在 macOS 上直接写入 IOSurface。
-
-代码按 crate 分层：
-
-| crate | 职责 |
-| --- | --- |
-| `winc-core` | 文本、编辑、撤销、差异等与界面无关的基础 |
-| `winc-syntax` | 语法高亮的词法分析 |
-| `winc-editor` | 文档、文件树、查找、Git、格式化等编辑器逻辑 |
-| `winc-vim` | Vim 模式的无界面部分：按键记法、命令表、命令的解析与求值 |
-| `winc-backend` | 文件系统的访问入口，区分本机路径与远端主机上的路径 |
-| `winc-server` | 运行在远端主机上的服务进程，经 SSH 为本机执行文件操作 |
-| `winc-watch` | 在文件所在的机器上监视目录（WSL 发行版内、远端主机上） |
-| `winc-render` | 渲染层：字形、光栅化、呈现 |
-| `winc-preview` | 图片、SVG、Markdown、PDF、Word 文档、表格预览 |
-| `winc-typeset` | Markdown 预览的排版 |
-| `winc-pty` | 终端仿真和伪终端的辅助进程 |
-| `winc-config` | 配置和状态文件 |
-| `winc-i18n` | 界面文案（Fluent 语言包） |
-| `winc-version` | 产品版本号，取自 `VERSION` 文件 |
-| `winc-app` | 应用本体：窗口、事件、各个界面 |
-| `winc` | 可执行文件的入口，只调用 `winc-app` |
-| `xtask` | 开发自动化：测试、基准、打包 |
-
-## 参与贡献
-
-欢迎贡献。提交合并请求前请阅读 [CONTRIBUTING.md](.github/CONTRIBUTING.md)，合并请求请提到
-`dev` 分支。所有贡献者都要签署[贡献者许可协议](.github/CLA.md)，并遵守
-[行为准则](.github/CODE_OF_CONDUCT.md)。报告安全漏洞见 [SECURITY.md](.github/SECURITY.md)。
-
-## 联系我们
-
-- 网站：[winc.si](https://winc.si)
-- 邮箱：[support@deeix.com](mailto:support@deeix.com)
-- Telegram：[t.me/deeix_chat](https://t.me/deeix_chat)
-- X：[@DEEIX_AI](https://x.com/DEEIX_AI)
-
-## 友情链接
-
-- [Rust](https://www.rust-lang.org)
-- [DEEIX AI](https://deeix.com)
-- [LINUX DO](https://linux.do)
-
-## 许可证
-
-winc 以 [Apache License 2.0](LICENSE) 授权，另见 [NOTICE](NOTICE)。
+Differ 基于 [Winc](https://github.com/DEEIX-AI/Winc) 编辑器开发，采用 [Apache License 2.0](LICENSE)。
+版权和第三方声明见 [NOTICE](NOTICE)。
