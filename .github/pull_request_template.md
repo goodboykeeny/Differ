@@ -33,4 +33,3 @@
 - [ ] Tests cover the fixed bug or the new behavior.
 - [ ] New interface text is added in both English and Simplified Chinese.
 - [ ] Startup time, memory use, and large files are not made slower (run `cargo xtask bench` when in doubt).
-- [ ] I have read and agree to the [Contributor License Agreement](https://github.com/DEEIX-AI/Winc/blob/HEAD/.github/CLA.md).
