@@ -22,6 +22,12 @@ Differ 是一款桌面应用，按分支名把本地各仓库的工作树归到�
 
 <p align="center"><sub>任务 <code>task-1042</code> 改了 api、deploy、web 三个项目的 5 个文件，都在同一个侧栏里。</sub></p>
 
+<p align="center">
+  <img src=".github/assets/screenshot-blame.png" alt="任务差异两侧的逐行 Blame：作者和日期一栏，悬停显示提交说明" width="900">
+</p>
+
+<p align="center"><sub>在差异里右键打开 Blame：两侧各多一栏作者和日期，悬停看提交，点击跳到日志里的那次提交。</sub></p>
+
 ## 功能
 
 - **按任务归组**：扫描打开的目录、它的直属子目录和其中的 `.worktrees/`，以及已发现仓库登记的其他工作树，检出同名分支的项目归到同一个任务

@@ -22,6 +22,12 @@ Differ is a desktop app that groups local Git worktrees into one task by branch 
 
 <p align="center"><sub>Task <code>task-1042</code> changes 5 files in three projects (api, deploy, web), all listed in one sidebar.</sub></p>
 
+<p align="center">
+  <img src=".github/assets/screenshot-blame.png" alt="Line-by-line blame on both sides of a task diff: an author and date column, with the commit shown on hover" width="900">
+</p>
+
+<p align="center"><sub>Right-click in a diff to turn on blame: each side gets an author and date column, hover shows the commit, and a click opens it in the log.</sub></p>
+
 ## Features
 
 - **Grouped by task**: scans the open folder, its immediate subfolders and their `.worktrees/` directories, plus the linked worktrees of every repository it finds. Projects with the same branch checked out form one task
