@@ -90,14 +90,18 @@ fn a_task_lists_every_project_and_steps_across_them() {
     let blamed = |app: &App| app.editor.active().unwrap().diff.as_deref().unwrap().blamed;
     assert_eq!(blamed(&app), [true, true]);
     paint(&mut app);
-    app.toggle_diff_blame();
-    assert_eq!(blamed(&app), [false, false]);
 
-    // 下一个文件一直走到另一个项目；到头后不再前进。
+    // 下一个文件一直走到另一个项目；到头后不再前进。未跟踪的文件不能追溯，走过它之后追溯还开着。
     app.step_diff_file(true);
     assert_eq!(app.tasks.current, Some((0, 1)));
+    assert_eq!(blamed(&app), [false, false]);
+    paint(&mut app);
     app.step_diff_file(true);
     assert_eq!(app.tasks.current, Some((1, 0)));
+    assert_eq!(blamed(&app), [true, true]);
+    paint(&mut app);
+    app.toggle_diff_blame();
+    assert_eq!(blamed(&app), [false, false]);
     app.step_diff_file(true);
     app.step_diff_file(true);
     assert_eq!(app.tasks.current, Some((1, 1)));

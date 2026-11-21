@@ -3,7 +3,7 @@
 //! 在配置的目录（未配置时为打开的目录）下找出各个工作树，按分支名归并成任务；选中一个任务后
 //! 列出它在每个项目里的改动，逐个文件在同一个差异标签中打开，上一个、下一个文件跨项目切换。
 
-use winc_editor::git::{CommitFile, Task, TaskRange, TaskRules};
+use winc_editor::git::{Change, CommitFile, Task, TaskRange, TaskRules};
 
 use super::*;
 use winc_render::Rect;
@@ -73,6 +73,8 @@ pub(crate) struct TaskState {
     pub scanning: bool,
     /// 是否已经查找过。
     pub scanned: bool,
+    /// 换到下一个文件时是否开着逐行追溯（经过不能追溯的文件时记着）。
+    pub blame: bool,
     /// 选中的关键字筛选项（[`App::task_keywords`] 的下标）；`None` 是全部。
     pub keyword: Option<usize>,
     /// 改动的范围。
@@ -102,6 +104,7 @@ pub(crate) struct TaskState {
 impl Default for TaskState {
     fn default() -> TaskState {
         TaskState {
+            blame: false,
             tasks: Vec::new(),
             scanning: false,
             scanned: false,
@@ -447,8 +450,25 @@ impl App {
                     }
                     match view {
                         Ok(view) => {
+                            // 逐行追溯开着时一路开着：中间经过不能追溯的文件（未跟踪）也不关。
+                            let old = (self.tasks.preview)
+                                .and_then(|id| self.editor.document(id))
+                                .and_then(|d| d.diff.as_deref());
+                            let blame = match old {
+                                Some(old) if old.old.blame.is_some() || old.new.blame.is_some() => {
+                                    old.blamed.contains(&true)
+                                }
+                                Some(_) => self.tasks.blame,
+                                None => false,
+                            };
+                            self.tasks.blame = blame;
                             let index = self.editor.show_diff_in(self.tasks.preview, &title, *view);
-                            self.tasks.preview = Some(self.editor.documents[index].id);
+                            let id = self.editor.documents[index].id;
+                            self.tasks.preview = Some(id);
+                            if let Some(view) = self.editor.documents[index].diff.as_deref_mut() {
+                                view.blamed = [&view.old, &view.new]
+                                    .map(|half| blame && half.blame.is_some());
+                            }
                             self.tasks.current = Some(at);
                             // 键盘跟着打开的差异走，不留在已经看不见的文件树上。
                             self.focus = Focus::Editor;
@@ -594,13 +614,18 @@ fn task_diff(
         new.is_some().then(|| file.path.clone()),
         language,
     )
-    .with_missing(new.is_none())
-    // 右侧是工作区里的文件：还没提交的行算「未提交」。
-    .with_blame(BlameSource {
-        root: root.to_path_buf(),
-        path: file.path.clone(),
-        rev: None,
-    });
+    .with_missing(new.is_none());
+    // 右侧是工作区里的文件：还没提交的行算「未提交」。未跟踪的文件、还没有提交的分支 `git blame`
+    // 总是失败，不追溯。
+    let new_side = if base.is_some() && file.change != Change::Untracked {
+        new_side.with_blame(BlameSource {
+            root: root.to_path_buf(),
+            path: file.path.clone(),
+            rev: None,
+        })
+    } else {
+        new_side
+    };
     let mut view = DiffView::new(old_side, new_side);
     view.snapshot_path = Some(file.path.clone());
     Ok(view)
