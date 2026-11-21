@@ -100,6 +100,21 @@ fn a_task_lists_every_project_and_steps_across_them() {
     assert_eq!(app.tasks.current, Some((1, 0)));
     assert_eq!(blamed(&app), [true, true]);
     paint(&mut app);
+
+    // 点追溯栏里的一行：项目的工作树不在打开的目录找到的仓库里，也切换过去并在日志里选中该提交。
+    let view = app.editor.active().unwrap().diff.as_deref().unwrap();
+    let tree = view.new.blame.as_ref().unwrap().root.clone();
+    assert!(tree.ends_with(".worktrees/ui-task-7"));
+    assert!(!app.git.repositories.contains(&tree));
+    let preview = app.editor.active().unwrap().id;
+    app.click_diff_blame(1, 0);
+    assert_eq!(app.git.root.as_deref(), Some(tree.as_path()));
+    let log = app.editor.active().unwrap().log.as_deref().unwrap();
+    assert_eq!(log.root.as_deref(), Some(tree.as_path()));
+    app.close_tab(app.editor.active.unwrap());
+    let index = app.editor.documents.iter().position(|d| d.id == preview);
+    app.activate_tab(index.unwrap());
+
     app.toggle_diff_blame();
     assert_eq!(blamed(&app), [false, false]);
     app.step_diff_file(true);
