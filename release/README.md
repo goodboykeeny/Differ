@@ -1,3 +1,21 @@
+# Releasing Differ
+
+Differ's installers are built by `.github/workflows/differ-release.yml`:
+
+- Pushing the tag `v<version>` (the version in the `VERSION` file) builds the macOS dmg for Apple
+  silicon and Intel, and the Windows x64 NSIS installer, MSI and portable zip, verifies them, and
+  publishes a GitHub Release with `SHA256SUMS`.
+- Pushing a `release/**` branch builds and verifies the same packages without publishing; they stay
+  on the run as artifacts.
+
+The packages are named `Differ-<version>-…`. They are not signed with an Apple Developer ID or a
+Windows certificate (the macOS app is ad-hoc signed) and carry no update feed, so the app does not
+check for updates.
+
+The rest of this document describes the upstream Winc pipeline, which is kept for merges from
+upstream and only runs when dispatched by hand. Its Windows scripts (`release/windows/`) are shared
+with the Differ workflow and already use the Differ names.
+
 # Releasing winc
 
 Every merge into `main` is a release. It creates the annotated tag `v<version>`, explicitly

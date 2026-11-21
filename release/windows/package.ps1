@@ -7,23 +7,23 @@ if ($Target -ne 'x86_64-pc-windows-msvc') { throw "unsupported Windows target: $
 $root = (Resolve-Path "$PSScriptRoot/../..").Path
 $version = (& node "$PSScriptRoot/../common/version.mjs").Trim()
 if ($LASTEXITCODE -ne 0) { throw 'cannot read the VERSION file' }
-$config = Get-Content "$env:RUNNER_TEMP/build-config.json" -Raw | ConvertFrom-Json
-if ($config.version -ne $version) { throw 'build configuration does not match the VERSION file' }
+$msiVersion = (& node "$PSScriptRoot/../common/msi-version.mjs").Trim()
+if ($LASTEXITCODE -ne 0) { throw 'cannot derive the MSI version' }
 $release = "$root/target/$Target/release"
 $bundle = "$release/bundle"
 $stage = "$bundle/stage"
-$stem = "Winc-$version-windows-x64"
+$stem = "Differ-$version-windows-x64"
 New-Item -ItemType Directory -Force $stage | Out-Null
-foreach ($name in @('winc.exe', 'winc-pty.exe', 'conpty.dll', 'OpenConsole.exe')) {
+foreach ($name in @('differ.exe', 'winc-pty.exe', 'conpty.dll', 'OpenConsole.exe')) {
     if (-not (Test-Path "$release/$name")) { throw "missing $name" }
     Copy-Item "$release/$name" "$stage/$name" -Force
 }
 Copy-Item "$root/LICENSE", "$root/NOTICE", "$bundle/icons/winc.ico" $stage -Force
-# WSL runs bin/winc with sh, which rejects CRLF line endings however the source was checked out.
+# WSL runs bin/differ with sh, which rejects CRLF line endings however the source was checked out.
 New-Item -ItemType Directory -Force "$stage/bin" | Out-Null
-$launcher = [IO.File]::ReadAllText("$PSScriptRoot/winc").Replace("`r`n", "`n")
-[IO.File]::WriteAllText("$stage/bin/winc", $launcher, (New-Object Text.UTF8Encoding $false))
-Copy-Item "$PSScriptRoot/winc.cmd" "$stage/bin/winc.cmd" -Force
+$launcher = [IO.File]::ReadAllText("$PSScriptRoot/differ").Replace("`r`n", "`n")
+[IO.File]::WriteAllText("$stage/bin/differ", $launcher, (New-Object Text.UTF8Encoding $false))
+Copy-Item "$PSScriptRoot/differ.cmd" "$stage/bin/differ.cmd" -Force
 Copy-Item "$PSScriptRoot/path.ps1" $stage -Force
 # Document icons for the file types, one per group of types (see installer.nsi).
 New-Item -ItemType Directory -Force "$stage/icons" | Out-Null
@@ -38,12 +38,12 @@ foreach ($name in $servers) {
 if ($Phase -eq 'portable') {
     $portable = "$bundle/portable"
     New-Item -ItemType Directory -Force $portable | Out-Null
-    # A data folder beside winc.exe keeps settings and state out of the user profile; the readme
+    # A data folder beside differ.exe keeps settings and state out of the user profile; the readme
     # inside also keeps Compress-Archive from dropping the folder as empty.
     New-Item -ItemType Directory -Force "$stage/data" | Out-Null
     Copy-Item "$PSScriptRoot/portable-data-readme.txt" "$stage/data/README.txt" -Force
     # Enumerate the files: installer markers never enter a portable archive.
-    Compress-Archive -Path "$stage/winc.exe", "$stage/winc-pty.exe", "$stage/conpty.dll", "$stage/OpenConsole.exe", "$stage/winc-watch", "$stage/winc-server-Linux-x86_64", "$stage/winc-server-Linux-aarch64", "$stage/bin", "$stage/data", "$stage/LICENSE", "$stage/NOTICE", "$stage/winc.ico" -DestinationPath "$portable/$stem-portable.zip" -Force
+    Compress-Archive -Path "$stage/differ.exe", "$stage/winc-pty.exe", "$stage/conpty.dll", "$stage/OpenConsole.exe", "$stage/winc-watch", "$stage/winc-server-Linux-x86_64", "$stage/winc-server-Linux-aarch64", "$stage/bin", "$stage/data", "$stage/LICENSE", "$stage/NOTICE", "$stage/winc.ico" -DestinationPath "$portable/$stem-portable.zip" -Force
     return
 }
 
@@ -53,7 +53,7 @@ New-Item -ItemType Directory -Force "$stage/nsis", "$stage/msi", "$bundle/nsis",
 $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
 $wix = "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin"
 if (-not (Test-Path $makensis) -or -not (Test-Path "$wix/candle.exe")) { throw 'NSIS 3.11 and WiX 3.14.1 are required' }
-$numericVersion = (($config.msiVersion.Split('.') + @('0', '0', '0', '0'))[0..3] -join '.')
+$numericVersion = (($msiVersion.Split('.') + @('0', '0', '0', '0'))[0..3] -join '.')
 $nsis = "$bundle/nsis/$stem-setup.exe"
 $nsisArgs = @('/V2', '/INPUTCHARSET', 'UTF8', "/DVERSION=$version", "/DVIVERSION=$numericVersion", "/DSOURCE=$stage", "/DOUT_FILE=$nsis")
 if ($env:WINDOWS_CERTIFICATE_THUMBPRINT) { $nsisArgs += "/DSIGN_SCRIPT=$PSScriptRoot/sign.ps1" }
@@ -64,7 +64,7 @@ if ($LASTEXITCODE -ne 0) { throw "makensis failed with $LASTEXITCODE" }
 $license = (Get-Content "$root/LICENSE" -Raw).Replace('\', '\\').Replace('{', '\{').Replace('}', '\}').Replace("`r", '').Replace("`n", '\par ')
 [IO.File]::WriteAllText("$stage/license.rtf", "{\rtf1\ansi $license}")
 $msi = "$bundle/msi/$stem.msi"
-& "$wix/candle.exe" -nologo -arch x64 "-dVersion=$($config.msiVersion)" "-dSource=$stage" -out "$stage/installer.wixobj" "$root/release/windows/installer.wxs"
+& "$wix/candle.exe" -nologo -arch x64 "-dVersion=$($msiVersion)" "-dSource=$stage" -out "$stage/installer.wixobj" "$root/release/windows/installer.wxs"
 if ($LASTEXITCODE -ne 0) { throw "candle failed with $LASTEXITCODE" }
 & "$wix/light.exe" -nologo -ext WixUIExtension -out $msi "$stage/installer.wixobj"
 if ($LASTEXITCODE -ne 0) { throw "light failed with $LASTEXITCODE" }

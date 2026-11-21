@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Starts differ from a shell. WSL finds this script through the Windows Path; differ receives the
+# distribution so that absolute paths given here resolve inside it. --launcher lets differ.exe start its
+# window in the background, so the command returns instead of waiting for differ to exit.
+dir="$(dirname "$(dirname "$(realpath "$0")")")"
+if [ -n "$WSL_DISTRO_NAME" ]; then
+    exec "$dir/differ.exe" --launcher --wsl "$WSL_DISTRO_NAME" "$@"
+fi
+exec "$dir/differ.exe" --launcher "$@"

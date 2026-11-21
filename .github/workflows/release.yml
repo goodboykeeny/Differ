@@ -2,11 +2,10 @@ name: Release
 
 # Coordinate shared inputs, native builds and publication in the source ref's
 # context. Tag code must never write caches in the default branch's scope.
+#
+# This is the upstream Winc pipeline (signed packages, update feeds, Linux packages). Differ's
+# installers come from differ-release.yml, which tags start; this one only runs when dispatched.
 on:
-  push:
-    tags:
-      - "v*.*.*"
-      - "v*.*.*-*"
   workflow_dispatch:
     inputs:
       release_tag:
