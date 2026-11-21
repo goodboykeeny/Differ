@@ -97,7 +97,7 @@ your branch.
 
 ## Pull Request Review
 
-A maintainer reviews every pull request. The checks "CI", "Commit messages", and "CLA" must pass
+A maintainer reviews every pull request. The checks "CI" and "Commit messages" must pass
 before a pull request is merged; a pull request into `main` must also pass "Source branch" and
 "Release version". Maintainers may ask for changes, or close a pull request that does not fit the
 project's direction.
