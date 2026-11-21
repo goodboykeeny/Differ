@@ -635,3 +635,24 @@ fn a_theme_brings_its_own_ui_font_unless_one_is_set() {
     app.config.ui_font = Some("Inter".to_owned());
     assert_eq!(app.ui_font().as_deref(), Some("Inter"));
 }
+
+/// 换到自带界面字体的主题时不滚回光标：光标在屏幕外，正在看的位置留在原处。
+#[test]
+fn a_theme_that_changes_the_font_keeps_the_scroll_position() {
+    use winit::window::Theme;
+    let dir = search_folder("theme-font-scroll");
+    let text: String = (0..200).map(|i| format!("line {i}\n")).collect();
+    std::fs::write(dir.join("src/long.rs"), text).unwrap();
+    let mut app = app_with(&dir, true);
+    app.open_path(&dir.join("src/long.rs"));
+    app.editor.active_mut().unwrap().scroll_line = 120.0;
+
+    app.set_theme(Theme::Light);
+    assert!(app.theme_font.is_some());
+    assert_eq!(app.editor.active().unwrap().scroll_line, 120.0);
+    app.set_theme(Theme::Dark);
+    assert_eq!(app.theme_font, None);
+    assert_eq!(app.editor.active().unwrap().scroll_line, 120.0);
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}
