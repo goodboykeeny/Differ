@@ -102,7 +102,9 @@ fn a_task_lists_every_project_and_steps_across_them() {
     paint(&mut app);
 
     // 点追溯栏里的一行：项目的工作树不在打开的目录找到的仓库里，也切换过去并在日志里选中该提交。
-    let tree = dir.join(".worktrees/ui-task-7");
+    let view = app.editor.active().unwrap().diff.as_deref().unwrap();
+    let tree = view.new.blame.as_ref().unwrap().root.clone();
+    assert!(tree.ends_with(".worktrees/ui-task-7"));
     assert!(!app.git.repositories.contains(&tree));
     let preview = app.editor.active().unwrap().id;
     app.click_diff_blame(1, 0);
