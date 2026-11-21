@@ -203,6 +203,7 @@ impl App {
                 git.commit.set_compact(compact);
                 git
             },
+            tasks: Default::default(),
             remote: Default::default(),
             trash: crate::system::move_to_trash,
             closing: Default::default(),

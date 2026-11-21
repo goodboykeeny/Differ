@@ -12,11 +12,11 @@ terminal-module-disabled = The terminal module isn’t enabled
 
 ## Terminal helper
 
-terminal-helper-missing = Couldn’t find the terminal helper; reinstall Winc
+terminal-helper-missing = Couldn’t find the terminal helper; reinstall Differ
 terminal-helper-start-failed = Couldn’t start the terminal helper: { $error }
 terminal-needs-conpty = The terminal needs Windows 10 version 1809 or later
 terminal-helper-exited = The terminal helper exited
-terminal-helper-version-mismatch = The terminal helper’s version doesn’t match Winc; reinstall Winc
+terminal-helper-version-mismatch = The terminal helper’s version doesn’t match Differ; reinstall Differ
 terminal-process-exited = Process exited (exit code { $code })
 terminal-disconnected = Terminal connection lost
 terminal-restart = Restart
@@ -55,7 +55,7 @@ terminal-quit-confirm-many = { $count ->
         [one] Quit and end { $count } running program?
        *[other] Quit and end { $count } running programs?
     }
-terminal-quit-confirm-detail = Programs are still running in the terminal. Quitting Winc will end them.
+terminal-quit-confirm-detail = Programs are still running in the terminal. Quitting Differ will end them.
 terminal-close-window-confirm-one = Close the window and end “{ $name }”?
 terminal-close-window-confirm-many = { $count ->
         [one] Close the window and end { $count } running program?
@@ -97,7 +97,7 @@ terminal-run-select = Select Run Configuration
 terminal-run-again = Run Again
 terminal-run-confirm = Run “{ $name }”?
 terminal-run-confirm-detail = This command comes from the project’s .winc/run.json and runs with your user permissions. Run it only if you trust this project.
-terminal-run-confirm-detected = Winc generated this command from the project’s files, and it runs code from the project. Run it only if you trust this project.
+terminal-run-confirm-detected = Differ generated this command from the project’s files, and it runs code from the project. Run it only if you trust this project.
 terminal-run-confirm-command = Command: { $command }
 terminal-run-confirm-cwd = Working directory: { $cwd }
 terminal-run-confirm-env = Environment variable: { $variable }

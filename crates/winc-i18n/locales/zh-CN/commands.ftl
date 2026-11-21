@@ -291,7 +291,7 @@ cmd-cli-usage =
                             打开远端主机上的目录和其中的文件（需要启用远程模块）
       winc -                读取标准输入（例如 cargo build 2>&1 | winc -）
       -w, --wait            文件的标签页全部关闭后再退出（例如 git config core.editor "winc -w"）
-      -n, --new-instance    不复用正在运行的 Winc，启动新进程（例如在 Winc 的终端中运行开发版本）
+      -n, --new-instance    不复用正在运行的 Differ，启动新进程（例如在 Differ 的终端中运行开发版本）
       -h, --help            显示帮助
       -v, --version         显示版本号
 cmd-cli-unknown-option = 无法识别的选项「{ $flag }」

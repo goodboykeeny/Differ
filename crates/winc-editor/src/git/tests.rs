@@ -7,6 +7,7 @@ use super::*;
 
 mod history;
 mod locate;
+mod tasks;
 
 fn root() -> PathBuf {
     PathBuf::from("/repo")

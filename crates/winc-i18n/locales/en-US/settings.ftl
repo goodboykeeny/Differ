@@ -107,7 +107,7 @@ settings-git-tree = Show Changes as Tree
 settings-git-remember-credentials = Remember Passwords
 settings-git-confirm-push = Confirm Before Pushing
 settings-git-staging-area = Staging Area
-settings-terminal-prompt = Winc Prompt
+settings-terminal-prompt = Differ Prompt
 settings-terminal-shell-integration = Shell Integration
 settings-terminal-application-priority = Terminal Application Priority
 settings-terminal-option-as-meta = Meta Key
@@ -179,7 +179,7 @@ settings-release-notes-view = View
 settings-updates-off = In-app updates aren’t available in this build
 settings-updates-idle = Not checked yet
 settings-updates-checking = Checking for updates…
-settings-updates-latest = Winc is up to date
+settings-updates-latest = Differ is up to date
 settings-updates-found = A new version is available: { $version }
 settings-updates-found-download = Version { $version } is available. Click Update in the status bar to open the downloads page
 settings-updates-found-pacman = Version { $version } is available. Run sudo pacman -Syu to update
@@ -187,8 +187,8 @@ settings-updates-failed = Couldn’t check for updates. Try again later.
 settings-updates-failed-because = Couldn’t check for updates: { $reason }
 settings-updates-downloading = Downloading { $version }: { $percent }%
 settings-updates-ready = { $platform ->
-    [windows] { $version } is downloaded. It installs when you restart or quit Winc.
-   *[other] { $version } is installed. Restart Winc to use it.
+    [windows] { $version } is downloaded. It installs when you restart or quit Differ.
+   *[other] { $version } is installed. Restart Differ to use it.
 }
 settings-updates-install-failed = Couldn’t install the update: { $error }
 settings-format-on-save-desc = Format files with the tools below before saving
@@ -254,6 +254,8 @@ settings-theme-name-sky = Clear Sky
 settings-theme-name-paper = Plain Paper
 settings-theme-name-vermilion = Vermilion
 settings-theme-name-mist = Morning Mist
+settings-theme-name-graphite-day = Graphite Day
+settings-theme-name-graphite-night = Graphite Night
 settings-theme-name-veil-snow = Snow Veil
 settings-theme-name-veil-linen = Linen Veil
 settings-theme-name-winc-night = Winc Night Flight

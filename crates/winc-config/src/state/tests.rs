@@ -446,7 +446,7 @@ fn save_to_writes_a_temp_file_then_renames() {
 #[test]
 fn state_path_is_separate_from_config() {
     let path = state_path().unwrap();
-    assert!(path.ends_with("winc/state.json"), "{}", path.display());
+    assert!(path.ends_with("differ/state.json"), "{}", path.display());
     assert_ne!(Some(path), crate::config_path());
 }
 

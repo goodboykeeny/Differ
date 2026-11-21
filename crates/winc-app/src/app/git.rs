@@ -19,6 +19,7 @@ pub(crate) mod rebase;
 mod repository;
 pub(super) mod rewrite;
 mod stepping;
+pub(crate) mod tasks;
 pub(crate) mod worktree;
 
 use crate::app::scroll::set_scroll_line;

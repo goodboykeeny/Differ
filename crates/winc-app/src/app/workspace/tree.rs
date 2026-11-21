@@ -316,6 +316,7 @@ impl App {
             (true, SidebarView::Files) => Focus::Tree,
             (true, SidebarView::Search) => Focus::GlobalQuery,
             (true, SidebarView::Commit) => self.commit_view_focus(),
+            (true, SidebarView::Tasks) => Focus::Tree,
             (false, _) if self.focus == Focus::Terminal => Focus::Terminal,
             (false, _) => Focus::Editor,
         };

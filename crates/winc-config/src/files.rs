@@ -77,18 +77,18 @@ pub(crate) fn user_config_dir() -> Option<PathBuf> {
         home().map(|home| {
             home.join("Library")
                 .join("Application Support")
-                .join("winc")
+                .join("differ")
         })
     } else if cfg!(target_os = "windows") {
         std::env::var_os("APPDATA")
             .map(PathBuf::from)
             .or_else(home)
-            .map(|dir| dir.join("winc"))
+            .map(|dir| dir.join("differ"))
     } else {
         std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .or_else(|| home().map(|home| home.join(".config")))
-            .map(|dir| dir.join("winc"))
+            .map(|dir| dir.join("differ"))
     }
 }
 

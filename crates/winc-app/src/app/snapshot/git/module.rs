@@ -857,7 +857,7 @@ fn switching_modules_off_fades_their_chrome_out() {
     app.settings_toggle(Setting::TerminalModule);
     paint(&mut app);
     assert!(app.motion.module_fx.branch_label.is_some());
-    let full = app.sidebar_tabs()[2].0;
+    let full = app.sidebar_tabs()[3].0;
     let hit = |app: &App, item| app.hits.status.iter().any(|h| h.1 == item);
     assert!(hit(&app, StatusItem::Branch) && hit(&app, StatusItem::Terminal));
 
@@ -867,9 +867,9 @@ fn switching_modules_off_fades_their_chrome_out() {
     assert!(app.animating());
     paint(&mut app);
     let tabs = app.sidebar_tabs();
-    assert_eq!(tabs.len(), 3);
-    assert!(tabs[2].0.w > 0.0 && tabs[2].0.w < full.w);
-    assert_eq!(tabs[2].0.right(), full.right());
+    assert_eq!(tabs.len(), 4);
+    assert!(tabs[3].0.w > 0.0 && tabs[3].0.w < full.w);
+    assert_eq!(tabs[3].0.right(), full.right());
     assert!(app.motion.module_fx.branch_label.is_some());
     assert!(!hit(&app, StatusItem::Branch) && !hit(&app, StatusItem::Terminal));
 
@@ -877,7 +877,7 @@ fn switching_modules_off_fades_their_chrome_out() {
     app.track_modules();
     assert!(!app.motion.module_fx.moving());
     assert!(app.motion.module_fx.branch_label.is_none());
-    assert_eq!(app.sidebar_tabs().len(), 2);
+    assert_eq!(app.sidebar_tabs().len(), 3);
     let _ = std::fs::remove_dir_all(&root);
 }
 

@@ -14,12 +14,14 @@ mod parse;
 mod rebase;
 mod remote;
 mod sync;
+mod tasks;
 
 pub use commit::RecentHistory;
 pub use output::{on_output, output_since, output_snapshot, output_text};
 pub use rebase::{RebaseAction, RebaseCommit, RebasePlan, RebaseStep, rebase_todo};
 pub use remote::{Remote, TagTarget, repository_dir_name};
 pub use sync::{Carried, MINIMUM_VERSION, Outgoing, Synced};
+pub use tasks::{Task, TaskChanges, TaskProject, TaskRange, TaskRules};
 mod history;
 mod locate;
 pub use locate::runs_here;

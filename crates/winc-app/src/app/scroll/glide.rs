@@ -11,11 +11,12 @@ use crate::app::git::commit::COMMIT_ROW;
 use crate::app::scroll::editor::GLIDE_MIN_ROWS;
 
 /// 只保存一个竖直滚动位置的区域，见 [`App::pane_scroll`]；绘制前逐一对齐。
-const PANES: [ScrollTarget; 9] = [
+const PANES: [ScrollTarget; 10] = [
     ScrollTarget::Picker,
     ScrollTarget::Tabs,
     ScrollTarget::Commit,
     ScrollTarget::Outline,
+    ScrollTarget::Tasks,
     ScrollTarget::Results,
     ScrollTarget::Tree,
     ScrollTarget::LogDetails,

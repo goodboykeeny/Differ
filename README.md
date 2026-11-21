@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./crates/winc-app/assets/icon.svg" alt="winc" width="128" />
+  <img src="./crates/winc-app/assets/icon.svg" alt="Differ" width="128" />
 </p>
 
-<h1 align="center">Winc</h1>
+<h1 align="center">Differ</h1>
 
 <p align="center">
   A lighter, faster, more comfortable desktop editor.
@@ -22,6 +22,38 @@
 <p align="center">
   <a href="https://winc.si/#download"><img alt="Download Winc" src="./.github/assets/download-en.svg" /></a>
 </p>
+
+## Differ
+
+Differ is a fork of [Winc](https://github.com/DEEIX-AI/Winc) whose main job is reviewing the changes of
+one task across several repositories and worktrees at once.
+
+- **Tasks view** (the third icon in the sidebar): Differ scans the configured folders, their direct
+  subfolders and each `.worktrees/` folder, and groups worktrees that have the same branch checked
+  out into one task. Baseline branches (`master`, `main`, `develop`, `dev`, `baseline-*`)
+  are not tasks.
+- **Filter** tasks by keyword (`bugfix`, `task` by default).
+- **Pick a task** to list every changed file of every project, then page through them in one
+  side-by-side diff tab; next/previous file crosses project boundaries.
+- **Range**: *All changes* compares the working tree with the merge base of the baseline branch
+  (committed and uncommitted work); *Uncommitted* compares it with `HEAD`.
+- **Graphite Day / Graphite Night** themes are the default; the Winc themes are still in Settings.
+
+Configure the scan in `config.json` (`~/Library/Application Support/differ` on macOS,
+`~/.config/differ` on Linux); without `roots`, the opened folder is scanned:
+
+```json
+{
+  "tasks": {
+    "roots": ["~/Projects"],
+    "keywords": ["bugfix", "task"],
+    "baselines": ["master", "develop", "baseline-*"]
+  }
+}
+```
+
+Build and run with `cargo run --release -- ~/Projects`; the executable is `differ`.
+The rest of this document describes the editor Differ is built on.
 
 ## Overview
 

@@ -1087,12 +1087,12 @@ pub(crate) fn user_state_dir() -> Option<PathBuf> {
         std::env::var_os("LOCALAPPDATA")
             .map(PathBuf::from)
             .or_else(home)
-            .map(|dir| dir.join("winc"))
+            .map(|dir| dir.join("differ"))
     } else {
         std::env::var_os("XDG_STATE_HOME")
             .map(PathBuf::from)
             .or_else(|| home().map(|home| home.join(".local").join("state")))
-            .map(|dir| dir.join("winc"))
+            .map(|dir| dir.join("differ"))
     }
 }
 

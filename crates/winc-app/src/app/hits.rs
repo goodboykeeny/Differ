@@ -23,6 +23,8 @@ pub struct Hits {
     pub(crate) conflict_card: Option<(Rect, Vec<(Rect, ConflictAction)>)>,
     /// 侧栏标题行项目名的可点击区域，绘制时填入。
     pub(crate) project: Rect,
+    /// 任务视图里可以点击的位置。
+    pub(crate) tasks: Vec<(Rect, crate::app::git::tasks::TaskTarget)>,
     /// 差异标签中的可点击区域（标题栏按钮、折叠的行），绘制时更新。
     pub(crate) diff: Vec<(Rect, DiffTarget)>,
     /// 状态栏右侧各可点击项的区域。
@@ -132,6 +134,7 @@ impl Hits {
             picker_parts,
             tabs,
             outline,
+            tasks,
             log,
             merge,
             merge_card,
@@ -180,6 +183,7 @@ impl Hits {
         picker_parts.clear();
         tabs.clear();
         outline.clear();
+        tasks.clear();
         log.clear();
         merge.clear();
         *merge_card = None;

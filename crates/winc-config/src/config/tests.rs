@@ -383,6 +383,9 @@ fn round_trips_through_json() {
         ]
         .into(),
         git_worktree_copy: vec![".env*".to_string(), "config/local.toml".to_string()],
+        task_roots: vec!["~/Projects".to_string()],
+        task_keywords: vec!["bugfix".to_string(), "hotfix".to_string()],
+        task_baselines: vec!["master".to_string(), "release-*".to_string()],
         format_on_save: Some(false),
         format_on_save_exclude: vec!["markdown".to_string(), "yaml".to_string()],
         format_commands: BTreeMap::from([(
@@ -669,7 +672,7 @@ fn configs_are_read_as_jsonc_and_comments_are_kept_aside_when_writing() {
 #[test]
 fn config_path_lands_in_the_platform_directory() {
     let path = config_path().expect("总能算出配置路径");
-    assert!(path.ends_with("winc/config.json"), "{}", path.display());
+    assert!(path.ends_with("differ/config.json"), "{}", path.display());
 
     if cfg!(target_os = "macos") {
         assert!(path.to_string_lossy().contains("Application Support"));

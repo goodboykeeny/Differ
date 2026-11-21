@@ -21,6 +21,7 @@ impl App {
     pub(super) fn enter_diff_file(&mut self, forward: bool, last: bool) -> bool {
         self.diff.land = Some(last);
         let entered = self.step_stash_file(forward)
+            || self.step_task_file(forward)
             || self.step_log_file(forward)
             || self.step_changed_file(forward);
         if !entered {
@@ -47,6 +48,9 @@ impl App {
     /// 返回下一个（`forward`）或上一个文件的文件名；没有更多文件时为 `None`。
     pub(super) fn next_diff_file_name(&self, forward: bool) -> Option<String> {
         if let Some((_, name, _)) = self.next_stash_file(forward) {
+            return Some(name);
+        }
+        if let Some((_, _, _, name, _)) = self.next_task_file(forward) {
             return Some(name);
         }
         if let Some((_, _, name, _)) = self.next_log_file(forward) {
@@ -99,7 +103,10 @@ impl App {
         };
         let stash =
             self.git.commit.stash_view.is_some() && self.git.commit.stash_preview == Some(id);
-        stash || self.steps_log_files(id) || self.steps_changed_files(id)
+        stash
+            || self.steps_task_files(id)
+            || self.steps_log_files(id)
+            || self.steps_changed_files(id)
     }
 
     /// 滚动到下一处（`forward`）或上一处改动。

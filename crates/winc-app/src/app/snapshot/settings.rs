@@ -351,15 +351,15 @@ fn settings_keyboard_walks_every_item_and_adjusts() {
     }
     assert_eq!(app.settings.selected, Setting::LightTheme);
     app.settings_step(true);
-    assert_eq!(app.config.light_theme.as_deref(), Some("winc-paper"));
+    assert_eq!(app.config.light_theme.as_deref(), Some("winc-day"));
     assert_eq!(app.theme_choice, ThemeChoice::Light);
-    assert!(std::ptr::eq(app.palette, &crate::theme::WINC_PAPER));
+    assert!(std::ptr::eq(app.palette, &crate::theme::WINC_DAY));
     app.settings_move(true);
     assert_eq!(app.settings.selected, Setting::DarkTheme);
     app.settings_step(true);
-    assert_eq!(app.config.dark_theme.as_deref(), Some("winc-slate"));
+    assert_eq!(app.config.dark_theme.as_deref(), Some("winc-night"));
     assert_eq!(app.theme_choice, ThemeChoice::Dark);
-    assert!(std::ptr::eq(app.palette, &crate::theme::WINC_SLATE));
+    assert!(std::ptr::eq(app.palette, &crate::theme::WINC_NIGHT));
     for _ in 0..10 {
         app.settings_step(true);
     }
@@ -373,7 +373,7 @@ fn settings_keyboard_walks_every_item_and_adjusts() {
     for _ in 0..10 {
         app.settings_step(false);
     }
-    assert!(std::ptr::eq(app.palette, &crate::theme::WINC_NIGHT));
+    assert!(std::ptr::eq(app.palette, &crate::theme::GRAPHITE_NIGHT));
 
     // 编辑器字号：→ 加 1；到达上限后不再变化，对应一侧的按钮变淡。
     for _ in 0..2 {

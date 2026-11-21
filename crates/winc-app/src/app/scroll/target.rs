@@ -30,6 +30,8 @@ pub(crate) enum ScrollTarget {
     Commit,
     /// 文件视图底部的大纲列表。
     Outline,
+    /// 任务视图的列表。
+    Tasks,
     /// 全局搜索的结果列表。
     Results,
     /// 文件树。
@@ -121,6 +123,8 @@ impl App {
             ScrollTarget::Commit
         } else if self.outline_shown() && self.outline_list().contains(x, y) {
             ScrollTarget::Outline
+        } else if self.tasks_shown() && l.sidebar.contains(x, y) {
+            ScrollTarget::Tasks
         } else if self.panel_shown() && l.sidebar.contains(x, y) {
             ScrollTarget::Results
         } else if l.sidebar.contains(x, y) || self.in_tree_overflow(x, y) {
@@ -236,6 +240,7 @@ impl App {
             ScrollTarget::Picker
             | ScrollTarget::Commit
             | ScrollTarget::Outline
+            | ScrollTarget::Tasks
             | ScrollTarget::Results
             | ScrollTarget::LogDetails
             | ScrollTarget::LogBranches
@@ -274,6 +279,7 @@ impl App {
             ScrollTarget::Tabs => Some(self.tabs.scroll),
             ScrollTarget::Commit => Some(self.git.commit.scroll),
             ScrollTarget::Outline => Some(self.panels.outline.scroll),
+            ScrollTarget::Tasks => Some(self.tasks.scroll),
             ScrollTarget::Results => Some(self.panels.global.scroll),
             ScrollTarget::Tree => Some(self.panels.tree.scroll),
             ScrollTarget::LogDetails => {
@@ -302,6 +308,7 @@ impl App {
             ScrollTarget::Tabs => self.tabs.max_scroll(),
             ScrollTarget::Commit => self.commit_max_scroll(),
             ScrollTarget::Outline => self.outline_max_scroll(),
+            ScrollTarget::Tasks => self.task_max_scroll(),
             ScrollTarget::Results => self.results_max_scroll(),
             ScrollTarget::Tree => {
                 let rows = self.editor.workspace.as_ref().map_or(0, |w| w.rows().len());
@@ -338,6 +345,7 @@ impl App {
             ScrollTarget::Tabs => self.tabs.scroll = scroll,
             ScrollTarget::Commit => self.git.commit.scroll = scroll,
             ScrollTarget::Outline => self.panels.outline.scroll = scroll,
+            ScrollTarget::Tasks => self.tasks.scroll = scroll,
             ScrollTarget::Results => self.panels.global.scroll = scroll,
             ScrollTarget::Tree => self.panels.tree.scroll = scroll,
             ScrollTarget::LogDetails => {

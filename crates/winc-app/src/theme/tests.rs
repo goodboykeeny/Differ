@@ -340,6 +340,8 @@ fn project_badges_take_the_initials_and_the_given_color() {
 #[test]
 fn winc_themes_are_comfortable_and_readable() {
     for (id, p) in [
+        ("graphite-night", &GRAPHITE_NIGHT),
+        ("graphite-day", &GRAPHITE_DAY),
         ("winc-night", &WINC_NIGHT),
         ("winc-slate", &WINC_SLATE),
         ("winc-day", &WINC_DAY),

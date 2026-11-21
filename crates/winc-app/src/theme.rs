@@ -3,11 +3,13 @@
 //! 尺寸常量的单位均为逻辑像素。[`Palette`] 保存一套配色，[`ViewFonts`] 保存运行期的字号和行高；
 //! 文件类型图标的记号和颜色由 [`file_kind`] 按文件名给出。
 
+mod graphite;
 mod kinds;
 mod palettes;
 mod veil;
 mod winc;
 
+pub use graphite::*;
 pub use kinds::*;
 pub use palettes::*;
 pub use veil::*;
