@@ -594,7 +594,13 @@ fn task_diff(
         new.is_some().then(|| file.path.clone()),
         language,
     )
-    .with_missing(new.is_none());
+    .with_missing(new.is_none())
+    // 右侧是工作区里的文件：还没提交的行算「未提交」。
+    .with_blame(BlameSource {
+        root: root.to_path_buf(),
+        path: file.path.clone(),
+        rev: None,
+    });
     let mut view = DiffView::new(old_side, new_side);
     view.snapshot_path = Some(file.path.clone());
     Ok(view)
