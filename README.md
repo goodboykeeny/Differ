@@ -32,7 +32,7 @@ Differ 是一款桌面应用，按分支名把本地各仓库的工作树归到�
 
 ## 安装
 
-安装包随版本发布在 [Releases](https://github.com/goodboykeeny/Differ/releases) 页，下载对应系统的文件即可。
+各系统的安装包发布在 [Releases](https://github.com/goodboykeeny/Differ/releases) 页。
 
 也可以从源码运行，先装好 Git 和 [Rust](https://rustup.rs/)（macOS 另需 Xcode 命令行工具），工具链版本由 [`rust-toolchain.toml`](rust-toolchain.toml) 指定：
 

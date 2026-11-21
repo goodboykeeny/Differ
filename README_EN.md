@@ -32,7 +32,7 @@ Differ is a desktop app that groups local Git worktrees into one task by branch 
 
 ## Install
 
-Installers are published with each version on the [Releases](https://github.com/goodboykeeny/Differ/releases) page. Download the file for your system.
+Installers for each system are published on the [Releases](https://github.com/goodboykeeny/Differ/releases) page.
 
 To run from source, install Git and [Rust](https://rustup.rs/) (plus the Xcode Command Line Tools on macOS). The toolchain version is pinned in [`rust-toolchain.toml`](rust-toolchain.toml):
 
