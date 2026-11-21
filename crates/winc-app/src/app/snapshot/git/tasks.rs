@@ -85,11 +85,23 @@ fn a_task_lists_every_project_and_steps_across_them() {
     assert!(app.editor.active().unwrap().diff.is_some());
     assert!(app.diff_steps_files());
 
-    // 下一个文件一直走到另一个项目；到头后不再前进。
+    // 逐行追溯两侧都能开：左侧是基线上的版本，右侧是工作区里的文件。
+    app.toggle_diff_blame();
+    let blamed = |app: &App| app.editor.active().unwrap().diff.as_deref().unwrap().blamed;
+    assert_eq!(blamed(&app), [true, true]);
+    paint(&mut app);
+
+    // 下一个文件一直走到另一个项目；到头后不再前进。未跟踪的文件不能追溯，走过它之后追溯还开着。
     app.step_diff_file(true);
     assert_eq!(app.tasks.current, Some((0, 1)));
+    assert_eq!(blamed(&app), [false, false]);
+    paint(&mut app);
     app.step_diff_file(true);
     assert_eq!(app.tasks.current, Some((1, 0)));
+    assert_eq!(blamed(&app), [true, true]);
+    paint(&mut app);
+    app.toggle_diff_blame();
+    assert_eq!(blamed(&app), [false, false]);
     app.step_diff_file(true);
     app.step_diff_file(true);
     assert_eq!(app.tasks.current, Some((1, 1)));
