@@ -465,6 +465,9 @@ impl App {
                             let index = self.editor.show_diff_in(self.tasks.preview, &title, *view);
                             let id = self.editor.documents[index].id;
                             self.tasks.preview = Some(id);
+                            // 同一个标签换了内容（另一个文件，或刷新后的同一个文件）：上一次的
+                            // 追溯结果不再适用。
+                            self.git.blame.forget(id);
                             if let Some(view) = self.editor.documents[index].diff.as_deref_mut() {
                                 view.blamed = [&view.old, &view.new]
                                     .map(|half| blame && half.blame.is_some());
