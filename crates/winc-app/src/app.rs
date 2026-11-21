@@ -867,6 +867,9 @@ pub struct App {
     pub(crate) store: settings::Store,
     /// 配置中的主题选择；`Auto` 时跟随系统外观。
     pub theme_choice: ThemeChoice,
+    /// 已经加载的字体对应的那套主题自带的界面字体（见 `ThemeEntry::ui_font`）；换主题后不同时
+    /// 重新加载字体。
+    pub theme_font: Option<&'static str>,
     /// 最近打开的目录和各目录的现场。
     pub state: State,
     /// 未保存内容的备份，用于退出后恢复。

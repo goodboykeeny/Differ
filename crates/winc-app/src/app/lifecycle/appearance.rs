@@ -71,7 +71,18 @@ impl App {
         } else {
             terminal
         };
-        [editor, configured_fonts(&self.config.ui_font), terminal]
+        [editor, configured_fonts(&self.ui_font()), terminal]
+    }
+
+    /// 界面字体：设置的 `ui.font`；没有设置时是当前主题自带的（见 `ThemeEntry::ui_font`）。
+    pub(in crate::app) fn ui_font(&self) -> Option<String> {
+        (self.config.ui_font.clone()).or_else(|| self.current_theme_font().map(str::to_owned))
+    }
+
+    /// 当前主题自带的界面字体。
+    pub(in crate::app) fn current_theme_font(&self) -> Option<&'static str> {
+        let dark = self.palette.dark;
+        crate::theme::themes(dark)[self.theme_slot(dark)].ui_font
     }
 
     /// 返回界面和编辑区文字的字重（`ui.fontWeight`），未配置时为 400。
@@ -129,6 +140,10 @@ impl App {
     pub(in crate::app) fn set_theme(&mut self, theme: Theme) {
         self.palette = self.theme_palette(theme == Theme::Dark);
         self.terminal_theme_changed();
+        // 主题自带的界面字体不同时跟着换；字体不可用时渲染层保持原来的。
+        if self.current_theme_font() != self.theme_font {
+            let _ = self.apply_fonts();
+        }
 
         if let Some(renderer) = &mut self.frame.renderer {
             renderer.set_background(self.palette.frame_bg);
@@ -145,6 +160,7 @@ impl App {
     /// 渲染层无法使用配置的字体时，返回面向用户的错误说明。
     pub(in crate::app) fn apply_fonts(&mut self) -> Result<(), String> {
         let [mono, ui, terminal] = self.font_specs();
+        self.theme_font = self.current_theme_font();
         let weight = self.font_weight();
         let terminal_weight = self.terminal_font_weight();
 

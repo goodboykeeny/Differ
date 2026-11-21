@@ -131,6 +131,7 @@ impl ApplicationHandler<UserEvent> for App {
         self.palette = self.theme_palette(dark);
 
         let [mono, ui, terminal] = self.font_specs();
+        self.theme_font = self.current_theme_font();
 
         // 配置中的字体找不到或无法绘制时仍使用默认字体启动，并提示用户；否则手动修改配置时写错
         // 字体名，用户只能看到设置未生效而不知道原因。仅在配置了字体时才解析字体。

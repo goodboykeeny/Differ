@@ -9,19 +9,19 @@ fn visible(rgba: &[u8]) -> usize {
     pixels.iter().filter(|px| px[3] > 0).count()
 }
 
-/// 返回图像中黄色（改动的行）的像素个数。
-fn yellow(rgba: &[u8]) -> usize {
+/// 返回图像中蓝色（圆点）的像素个数。
+fn blue(rgba: &[u8]) -> usize {
     let (pixels, _) = rgba.as_chunks::<4>();
     (pixels.iter())
-        .filter(|px| px[3] > 200 && px[0] > 215 && px[1] > 150 && px[2] < 80)
+        .filter(|px| px[3] > 200 && px[0] < 120 && px[1] > 110 && px[2] > 215)
         .count()
 }
 
-/// 返回图像中接近白色（两栏里的行）的像素个数。
+/// 返回图像中比底板亮的灰白色（字母 D 的竖和弧）的像素个数。
 fn white(rgba: &[u8]) -> usize {
     let (pixels, _) = rgba.as_chunks::<4>();
     (pixels.iter())
-        .filter(|px| px[3] > 200 && px[0] > 215 && px[1] > 215 && px[2] > 215)
+        .filter(|px| px[3] > 200 && px[0] > 100 && px[1] > 100 && px[2] > 100)
         .count()
 }
 
@@ -46,7 +46,7 @@ fn the_logo_builds_up_layer_by_layer_and_ends_as_the_app_icon() {
     // 丝带从左到右显露：白色的像素逐渐增多，圆点最后出现。
     let (early, late) = (logo_frame(size, 0.45), logo_frame(size, 0.68));
     assert!(white(&early) > 0 && white(&late) > white(&early));
-    assert!(yellow(&late) == 0 && yellow(&plain) > 0);
+    assert!(blue(&late) == 0 && blue(&plain) > 0);
 }
 
 #[test]

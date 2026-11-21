@@ -432,7 +432,14 @@ pub struct ThemeEntry {
     pub id: &'static str,
     /// 主题的配色。
     pub palette: &'static Palette,
+    /// 没有设置界面字体（`ui.font`）时这套主题用的字体，逗号分隔、按优先级排列，没装的跳过；
+    /// `None` 为系统的界面字体。
+    pub ui_font: Option<&'static str>,
 }
+
+/// 「石墨·昼」的界面字体：衬线体，西文 Charter、中文宋体，各平台没有时依次往后找。
+const SERIF_UI: &str =
+    "Charter, Georgia, Charis SIL, Songti SC, Noto Serif CJK SC, Source Han Serif SC, serif";
 
 impl ThemeEntry {
     /// 返回设置里显示的主题名。
@@ -462,12 +469,20 @@ impl ThemeEntry {
 }
 
 const fn entry(id: &'static str, palette: &'static Palette) -> ThemeEntry {
-    ThemeEntry { id, palette }
+    ThemeEntry {
+        id,
+        palette,
+        ui_font: None,
+    }
 }
 
 /// 可选的浅色主题，第一个是默认的：「石墨」之后是 Winc 系列，为背景图设计的「幕」系列排在最后。
 pub static LIGHT_THEMES: [ThemeEntry; 9] = [
-    entry("graphite-day", &GRAPHITE_DAY),
+    ThemeEntry {
+        id: "graphite-day",
+        palette: &GRAPHITE_DAY,
+        ui_font: Some(SERIF_UI),
+    },
     entry("winc-day", &WINC_DAY),
     entry("winc-paper", &WINC_PAPER),
     entry("sky", &LIGHT),
