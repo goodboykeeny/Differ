@@ -647,6 +647,7 @@ impl App {
             SidebarView::Files => Focus::Tree,
             SidebarView::Search => Focus::GlobalQuery,
             SidebarView::Commit => self.commit_view_focus(),
+            SidebarView::Tasks => Focus::Tree,
         };
     }
 }

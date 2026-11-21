@@ -188,6 +188,10 @@ impl ApplicationHandler<UserEvent> for App {
         }
         self.note_window_frame();
         window.set_ime_allowed(true);
+        // Differ 的主要用途是看任务的改动：有目录可查时，窗口打开后侧栏先显示任务视图。
+        if self.editor.workspace.is_some() || !self.config.task_roots.is_empty() {
+            self.show_tasks();
+        }
         #[cfg(target_os = "macos")]
         {
             let proxy = self.link.proxy.clone();
@@ -475,6 +479,7 @@ impl App {
             | UserEvent::Wrapped) => self.finished(done),
             UserEvent::Rediffed => self.poll_rediffs(),
             UserEvent::Outline => self.poll_outline(),
+            UserEvent::Tasks => self.poll_tasks(),
             UserEvent::GitRollback(paths) => self.git_rollback(paths),
             UserEvent::GitSkip => {
                 self.run_branch_command(crate::app::input::context_menu::MenuCommand::GitSkip);

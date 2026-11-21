@@ -48,6 +48,11 @@ pub(in crate::view) fn draw_sidebar(app: &mut App, frame: &mut Frame<'_>) {
         return;
     }
 
+    if app.panels.sidebar.view == SidebarView::Tasks {
+        tasks::draw_tasks(app, frame);
+        return;
+    }
+
     draw_project_header(app, frame);
     draw_tree(app, frame);
     outline::draw_outline(app, frame);

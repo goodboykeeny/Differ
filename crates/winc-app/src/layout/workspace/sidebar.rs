@@ -135,6 +135,8 @@ pub enum SidebarView {
     ///
     /// 只在 Git 模块开着、目录在仓库里时有。
     Commit,
+    /// 任务视图：多个项目里签出同名分支的改动合在一起看。
+    Tasks,
 }
 
 impl SidebarView {
@@ -148,6 +150,7 @@ impl SidebarView {
             SidebarView::Commit => {
                 with_key(t!("workspace-sidebar-commit"), Some(Action::ShowCommit))
             }
+            SidebarView::Tasks => t!("workspace-sidebar-tasks").to_owned(),
         }
     }
 }
@@ -166,8 +169,9 @@ pub fn set_traffic_lights_end(end: f32) -> bool {
     LIGHTS_END.swap(end.to_bits(), Ordering::Relaxed) != end.to_bits()
 }
 
-/// 总是有的两个侧栏视图。
-pub const BASE_VIEWS: [SidebarView; 2] = [SidebarView::Files, SidebarView::Search];
+/// 总是有的三个侧栏视图。
+pub const BASE_VIEWS: [SidebarView; 3] =
+    [SidebarView::Files, SidebarView::Search, SidebarView::Tasks];
 
 /// 返回红绿灯右侧第一个按钮的左边缘：侧栏收起时是侧栏开关，展开时是侧栏顶部的「文件」切换。
 ///

@@ -107,7 +107,7 @@ settings-git-tree = 树形显示更改
 settings-git-remember-credentials = 记住密码
 settings-git-confirm-push = 推送前确认
 settings-git-staging-area = 暂存区
-settings-terminal-prompt = Winc 提示符
+settings-terminal-prompt = Differ 提示符
 settings-terminal-shell-integration = Shell 集成
 settings-terminal-application-priority = 终端应用优先
 settings-terminal-option-as-meta = Meta 键
@@ -179,7 +179,7 @@ settings-release-notes-view = 查看
 settings-updates-off = 此版本不支持应用内更新
 settings-updates-idle = 尚未检查更新
 settings-updates-checking = 正在检查更新…
-settings-updates-latest = Winc 已是最新版本
+settings-updates-latest = Differ 已是最新版本
 settings-updates-found = 有可用的新版本：{ $version }
 settings-updates-found-download = 有可用的新版本：{ $version }，点击状态栏的「更新」打开下载页
 settings-updates-found-pacman = 有可用的新版本：{ $version }，运行 sudo pacman -Syu 更新
@@ -187,8 +187,8 @@ settings-updates-failed = 无法检查更新，请稍后重试
 settings-updates-failed-because = 无法检查更新：{ $reason }
 settings-updates-downloading = 正在下载 { $version }：{ $percent }%
 settings-updates-ready = { $platform ->
-    [windows] { $version } 已下载，重新启动或退出 Winc 时安装
-   *[other] { $version } 已安装，重新启动 Winc 后生效
+    [windows] { $version } 已下载，重新启动或退出 Differ 时安装
+   *[other] { $version } 已安装，重新启动 Differ 后生效
 }
 settings-updates-install-failed = 无法安装更新：{ $error }
 settings-format-on-save-desc = 保存前用下方的格式化工具整理文件
@@ -254,6 +254,8 @@ settings-theme-name-sky = 晴空
 settings-theme-name-paper = 素纸
 settings-theme-name-vermilion = 朱砂
 settings-theme-name-mist = 晨雾
+settings-theme-name-graphite-day = 石墨·昼
+settings-theme-name-graphite-night = 石墨·夜
 settings-theme-name-veil-snow = 雪幕
 settings-theme-name-veil-linen = 纱幕
 settings-theme-name-winc-night = Winc 夜航

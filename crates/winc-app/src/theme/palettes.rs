@@ -438,6 +438,8 @@ impl ThemeEntry {
     /// 返回设置里显示的主题名。
     pub fn name(&self) -> &'static str {
         match self.id {
+            "graphite-day" => t!("settings-theme-name-graphite-day"),
+            "graphite-night" => t!("settings-theme-name-graphite-night"),
             "winc-day" => t!("settings-theme-name-winc-day"),
             "winc-paper" => t!("settings-theme-name-winc-paper"),
             "sky" => t!("settings-theme-name-sky"),
@@ -463,8 +465,9 @@ const fn entry(id: &'static str, palette: &'static Palette) -> ThemeEntry {
     ThemeEntry { id, palette }
 }
 
-/// 可选的浅色主题，第一个是默认的：Winc 系列排在前面，为背景图设计的「幕」系列排在最后。
-pub static LIGHT_THEMES: [ThemeEntry; 8] = [
+/// 可选的浅色主题，第一个是默认的：「石墨」之后是 Winc 系列，为背景图设计的「幕」系列排在最后。
+pub static LIGHT_THEMES: [ThemeEntry; 9] = [
+    entry("graphite-day", &GRAPHITE_DAY),
     entry("winc-day", &WINC_DAY),
     entry("winc-paper", &WINC_PAPER),
     entry("sky", &LIGHT),
@@ -475,8 +478,9 @@ pub static LIGHT_THEMES: [ThemeEntry; 8] = [
     entry("veil-linen", &VEIL_LINEN),
 ];
 
-/// 可选的深色主题，第一个是默认的：Winc 系列排在前面，为背景图设计的「幕」系列排在最后。
-pub static DARK_THEMES: [ThemeEntry; 8] = [
+/// 可选的深色主题，第一个是默认的：「石墨」之后是 Winc 系列，为背景图设计的「幕」系列排在最后。
+pub static DARK_THEMES: [ThemeEntry; 9] = [
+    entry("graphite-night", &GRAPHITE_NIGHT),
     entry("winc-night", &WINC_NIGHT),
     entry("winc-slate", &WINC_SLATE),
     entry("ink", &DARK),

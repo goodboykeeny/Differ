@@ -12,11 +12,11 @@ terminal-module-disabled = 终端模块未启用
 
 ## 终端组件
 
-terminal-helper-missing = 未找到终端组件，请重新安装 Winc
+terminal-helper-missing = 未找到终端组件，请重新安装 Differ
 terminal-helper-start-failed = 无法启动终端组件：{ $error }
 terminal-needs-conpty = 终端需要 Windows 10 1809 或更高版本
 terminal-helper-exited = 终端组件已退出
-terminal-helper-version-mismatch = 终端组件的版本与 Winc 不一致，请重新安装 Winc
+terminal-helper-version-mismatch = 终端组件的版本与 Differ 不一致，请重新安装 Differ
 terminal-process-exited = 进程已退出（退出码 { $code }）
 terminal-disconnected = 终端连接已断开
 terminal-restart = 重新启动
@@ -51,7 +51,7 @@ terminal-find-no-results = 无结果
 
 terminal-quit-confirm-one = 要退出并结束「{ $name }」吗？
 terminal-quit-confirm-many = 要退出并结束 { $count } 个正在运行的程序吗？
-terminal-quit-confirm-detail = 终端中仍有程序在运行，退出 Winc 将结束这些程序。
+terminal-quit-confirm-detail = 终端中仍有程序在运行，退出 Differ 将结束这些程序。
 terminal-close-window-confirm-one = 要关闭窗口并结束「{ $name }」吗？
 terminal-close-window-confirm-many = 要关闭窗口并结束 { $count } 个正在运行的程序吗？
 terminal-close-window-confirm-detail = 此窗口的终端中仍有程序在运行，关闭窗口将结束这些程序。
@@ -81,7 +81,7 @@ terminal-run-select = 选择运行配置
 terminal-run-again = 重新运行
 terminal-run-confirm = 要运行「{ $name }」吗？
 terminal-run-confirm-detail = 此命令来自项目的 .winc/run.json，将以当前用户的权限执行。请仅在信任此项目时运行。
-terminal-run-confirm-detected = 此命令由 Winc 根据项目文件生成，将执行项目中的代码。请仅在信任此项目时运行。
+terminal-run-confirm-detected = 此命令由 Differ 根据项目文件生成，将执行项目中的代码。请仅在信任此项目时运行。
 terminal-run-confirm-command = 命令：{ $command }
 terminal-run-confirm-cwd = 工作目录：{ $cwd }
 terminal-run-confirm-env = 环境变量：{ $variable }

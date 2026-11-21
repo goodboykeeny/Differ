@@ -20,6 +20,14 @@ impl App {
             return Some(Hover::ProjectName);
         }
 
+        // 任务视图：按绘制时记下的位置找。
+        if self.tasks_shown() && self.panel_rect().contains(x, y) {
+            if self.panels.sidebar.visible && self.layout.splitter.contains(x, y) {
+                return None;
+            }
+            return Some(hit(&self.hits.tasks, x, y).map_or(Hover::None, Hover::Tasks));
+        }
+
         // 文件视图底部的大纲：按绘制时记下的位置找；分隔条由 `Target::Splitter` 处理。
         if self.layout.outline.contains(x, y) {
             if self.panels.sidebar.visible && self.layout.splitter.contains(x, y) {
@@ -296,12 +304,23 @@ impl App {
                 SidebarView::Files => self.show_files(),
                 SidebarView::Search => self.open_global_search(false),
                 SidebarView::Commit => self.show_commit(),
+                SidebarView::Tasks => self.show_tasks(),
             }
 
             return true;
         }
         if self.hits.project.contains(x, y) {
             self.open_project_menu();
+            return true;
+        }
+
+        if self.tasks_shown() && self.panel_rect().contains(x, y) {
+            if self.panels.sidebar.visible && self.layout.splitter.contains(x, y) {
+                return false;
+            }
+            if let Some(target) = hit(&self.hits.tasks, x, y) {
+                self.press_task(target);
+            }
             return true;
         }
 

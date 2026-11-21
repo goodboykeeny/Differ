@@ -67,17 +67,17 @@ common-dialog-creating = 正在创建…
 
 ## 移到「应用程序」文件夹
 
-app-move-title = 要将 Winc 移到「应用程序」文件夹吗？
-app-move-detail = Winc 当前在「{ $folder }」中直接运行，无法自动更新。移到「应用程序」文件夹后，原件将移到废纸篓，系统中只保留这一份 Winc。
-app-move-detail-image = Winc 当前从磁盘映像运行，无法自动更新。移到「应用程序」文件夹后，磁盘映像将被推出，系统中只保留这一份 Winc。
+app-move-title = 要将 Differ 移到「应用程序」文件夹吗？
+app-move-detail = Differ 当前在「{ $folder }」中直接运行，无法自动更新。移到「应用程序」文件夹后，原件将移到废纸篓，系统中只保留这一份 Differ。
+app-move-detail-image = Differ 当前从磁盘映像运行，无法自动更新。移到「应用程序」文件夹后，磁盘映像将被推出，系统中只保留这一份 Differ。
 app-move-button = 移到「应用程序」文件夹
 app-move-stay = 不移动
 app-move-failed = 无法移到「应用程序」文件夹：{ $error }
-app-move-target-running = 「应用程序」文件夹中的 Winc 正在运行，请先将其退出
+app-move-target-running = 「应用程序」文件夹中的 Differ 正在运行，请先将其退出
 app-move-trash-failed = 无法将「{ $path }」移到废纸篓
 app-move-copy-failed = 复制失败（{ $status }）
-app-move-relaunch-failed = 无法重新启动 Winc：{ $error }
-app-move-unknown-location = 无法确定 Winc 的位置
+app-move-relaunch-failed = 无法重新启动 Differ：{ $error }
+app-move-unknown-location = 无法确定 Differ 的位置
 close-confirm-quit = 要退出吗？
 close-confirm-window = 要关闭此窗口吗？
 net-proxy = 连不上代理服务器

@@ -70,6 +70,7 @@ pub(super) const SECTIONS: &[(&str, &[Field])] = &[
     ("terminal", TERMINAL),
     ("vim", VIM),
     ("git", GIT),
+    ("tasks", TASKS),
     ("network", NETWORK),
     ("remote", REMOTE),
     ("keyboard", KEYBOARD),
@@ -720,6 +721,41 @@ const GIT: &[Field] = &[
                 .then(|| Json::Array(globs.iter().cloned().map(Json::String).collect()))
         },
     },
+];
+
+/// 值为非空字符串数组的设置：键名和 [`Config`] 中的字段。
+macro_rules! list_field {
+    ($key:literal, $field:ident) => {
+        Field {
+            key: $key,
+            read: |config, value, name, problems| {
+                let Some(items) = value.as_array() else {
+                    problems.push(t!("config-not-array", name = name));
+                    return;
+                };
+                for item in items {
+                    match item.as_str() {
+                        Some(text) if !text.trim().is_empty() => {
+                            config.$field.push(text.to_owned());
+                        }
+                        _ => problems.push(t!("config-item-not-non-empty-string", name = name)),
+                    }
+                }
+            },
+            write: |config| {
+                let items = &config.$field;
+                (!items.is_empty())
+                    .then(|| Json::Array(items.iter().cloned().map(Json::String).collect()))
+            },
+        }
+    };
+}
+
+/// `tasks` 一节：跨项目查看一个任务的改动。
+const TASKS: &[Field] = &[
+    list_field!("roots", task_roots),
+    list_field!("keywords", task_keywords),
+    list_field!("baselines", task_baselines),
 ];
 
 /// `network` 一节。

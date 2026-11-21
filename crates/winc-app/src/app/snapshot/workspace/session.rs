@@ -713,7 +713,7 @@ fn a_second_winc_on_the_same_folder_leaves_the_first_ones_backups_alone() {
             .notice
             .text
             .as_deref()
-            .is_some_and(|n| n.contains("另一个 Winc"))
+            .is_some_and(|n| n.contains("另一个 Differ"))
     );
 
     // 第二个实例中修改并保存：不触碰第一个实例的备份；第二个实例自己不做备份，退出时仍然询问。

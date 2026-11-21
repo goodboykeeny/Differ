@@ -20,7 +20,7 @@ const BUNDLE_ID: &str = "com.deeix.winc";
 ///
 /// 应用包（`winc.app`）、可执行文件和命令行命令仍是小写的 `winc`；访达按 `CFBundleDisplayName`
 /// 显示应用的名字，不显示包名。
-const APP_NAME: &str = "Winc";
+const APP_NAME: &str = "Differ";
 
 /// 构建 release，组成临时签名（ad-hoc）的 `target/release/bundle/winc.app`，返回应用的路径和
 /// 版本号。

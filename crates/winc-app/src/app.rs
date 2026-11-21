@@ -249,6 +249,8 @@ pub enum UserEvent {
     Rediffed,
     /// 后台已提取完大纲的符号。
     Outline,
+    /// 任务视图的后台任务有了结果。
+    Tasks,
     /// 后台的提交、回滚已完成，或已取得上一次提交的信息。
     GitCommit,
     /// 确认框中确认回滚参数中的文件。
@@ -483,6 +485,8 @@ pub enum Hover {
     None,
     /// 文件视图底部大纲里的一处（符号行、行首箭头、标题行及其右端的按钮）。
     Outline(OutlineTarget),
+    /// 任务视图里的一处。
+    Tasks(git::tasks::TaskTarget),
     /// 编辑区右侧的缩略图。
     Minimap,
     /// 应用绘制的标题栏上的窗口按钮。
@@ -967,6 +971,8 @@ pub struct App {
     ///
     /// 模块关闭时为空。
     pub git: git::GitState,
+    /// 任务视图的状态：跨项目查看一个任务的改动。
+    pub(crate) tasks: git::tasks::TaskState,
     /// 远程模块：正在进行的连接。
     pub remote: remote::RemoteState,
 
@@ -1100,6 +1106,7 @@ impl App {
             UserEvent::FileWorked => self.poll_file_work(),
             UserEvent::GitMergeSides => self.poll_merge_sides(),
             UserEvent::GitLog => self.poll_log(),
+            UserEvent::Tasks => self.poll_tasks(),
             UserEvent::GitBlame => self.poll_blame(),
             UserEvent::Reread => self.poll_rereads(),
             UserEvent::TreeScanned => self.poll_tree_scans(),

@@ -26,4 +26,5 @@ fn main() {
     let out = Path::new(&var("OUT_DIR").expect("Cargo 总是设置 OUT_DIR")).join("winc.res");
     std::fs::write(&out, res).expect("写入资源文件");
     println!("cargo:rustc-link-arg-bin=winc={}", out.display());
+    println!("cargo:rustc-link-arg-bin=differ={}", out.display());
 }

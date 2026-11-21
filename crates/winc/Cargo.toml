@@ -7,6 +7,16 @@ publish.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+default-run = "differ"
+
+# Differ 的可执行文件；`winc` 仍然构建，发布脚本和上游的打包流程按这个名字取文件。
+[[bin]]
+name = "differ"
+path = "src/differ.rs"
+
+[[bin]]
+name = "winc"
+path = "src/main.rs"
 
 [dependencies]
 winc-app.workspace = true

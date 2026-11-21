@@ -263,6 +263,15 @@ pub struct Config {
     pub git_pull: Option<PullMode>,
     /// 新建工作树时复制过去的被忽略的文件（gitignore 写法的 glob，如 `.env*`），默认不复制。
     pub git_worktree_copy: Vec<String>,
+    /// 查找任务的目录：其中的各个仓库和工作树按签出的分支归并成任务；开头的 `~/` 指用户的
+    /// 主目录。未设置时在打开的目录中查找。
+    pub task_roots: Vec<String>,
+    /// 筛选任务的关键字：任务视图为每个关键字提供一个筛选项，只列出分支名含有该关键字的任务。
+    /// 未设置时为 [`Config::TASK_KEYWORDS`]。
+    pub task_keywords: Vec<String>,
+    /// 基线分支的写法（`*` 匹配任意一段文字）：签出基线分支的工作树不算任务，任务的改动相对
+    /// 最近的基线分支计算。未设置时为 `master`、`main`、`develop`、`dev`、`baseline-*`。
+    pub task_baselines: Vec<String>,
     /// 保存时先格式化，默认为否。
     pub format_on_save: Option<bool>,
     /// 保存时不格式化的语言（语言的 id）；手动格式化（`⇧⌥F`）仍然生效。
@@ -556,6 +565,8 @@ impl Config {
     ///
     /// 超出范围的值在读入时忽略并报告；上限取自调参，更长的等待与不超时无异。
     pub const VIM_TIMEOUT_LEN_RANGE: std::ops::RangeInclusive<f32> = 0.0..=60_000.0;
+    /// 筛选任务的默认关键字。
+    pub const TASK_KEYWORDS: [&'static str; 2] = ["bugfix", "task"];
     /// 查找仓库的默认层数：覆盖「目录 / 分组 / 项目」这样的常见结构；扫描在后台进行，有目录项总数
     /// 的上限，较深的层数不会拖慢界面。
     pub const REPOSITORY_SCAN_DEPTH: usize = 3;

@@ -291,7 +291,7 @@ cmd-cli-usage =
                             Open a folder on a remote host and files in it (needs the Remote module)
       winc -                Read standard input (e.g. cargo build 2>&1 | winc -)
       -w, --wait            Exit after all of the files’ tabs are closed (e.g. git config core.editor "winc -w")
-      -n, --new-instance    Start a separate process instead of handing off to the running Winc
+      -n, --new-instance    Start a separate process instead of handing off to the running Differ
       -h, --help            Show this help
       -v, --version         Show the version
 cmd-cli-unknown-option = Unrecognized option “{ $flag }”
