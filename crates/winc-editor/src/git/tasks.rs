@@ -318,8 +318,11 @@ impl Git {
         if start != "HEAD" {
             return Some(start.to_owned());
         }
+        // `git checkout -b` 可能是在主工作树里运行的，分支后来才签出到这个工作树。
+        let own = self.reflog(root, "HEAD", cancel);
+        let main = self.reflog(root, "main-worktree/HEAD", cancel);
         let arrived = format!(" to {branch}");
-        let switched = (self.reflog(root, "HEAD", cancel).iter())
+        let switched = (own.iter().chain(&main))
             .filter(|(moved, ..)| moved.abs_diff(*at) <= CREATED_WITHIN)
             .find_map(|(.., subject)| {
                 Some(moved_from(subject)?.strip_suffix(&arrived)?.to_owned())
@@ -327,26 +330,44 @@ impl Git {
         if switched.is_some() {
             return switched;
         }
-        // 主工作树在那一刻之前最后一次切换分支，切到的就是当时签出的分支。命令也可能是在别的
-        // 工作树里运行的，所以只在分支建在它的提交上时才算数。日志的时刻只精确到秒，同一秒里
-        // 的几次切换分不出先后，逐个试。
-        let log = self.reflog(root, "main-worktree/HEAD", cancel);
-        let moves = log.iter().filter_map(|(moved, _, subject)| {
-            let to = moved_from(subject)?.rsplit_once(" to ")?.1;
-            (moved <= at).then_some((moved, to))
+        // 主工作树在那一刻之前最后一次切换分支，切到的就是当时签出的分支。日志的时刻只精确到
+        // 秒，同一秒里的几次切换分不出先后，都算上。
+        let moves = main.iter().filter_map(|(moved, _, subject)| {
+            Some((*moved, moved_from(subject)?.rsplit_once(" to ")?))
         });
-        for (moved, main) in moves {
-            let mut command = self.command(root);
-            command.args(["merge-base", "--is-ancestor", oid]);
-            command.arg(format!("refs/heads/{main}"));
-            if self.run(&mut command, STATUS_TIMEOUT, cancel).is_ok() {
-                return Some(main.to_owned());
-            }
+        let moves: Vec<(u64, (&str, &str))> = moves.collect();
+        let mut then: Vec<String> = Vec::new();
+        let mut settled = false;
+        for (moved, (_, to)) in moves.iter().filter(|(moved, _)| moved <= at) {
+            then.push((*to).to_owned());
             if moved < at {
+                settled = true;
                 break;
             }
         }
-        None
+        if !settled {
+            // 那一刻之前没切换过：签出的是第一次切换之前的分支，一直没切换过就是现在的分支。
+            match moves.last() {
+                Some((_, (from, _))) => then.push((*from).to_owned()),
+                None => then.extend(self.main_branch(root, cancel)),
+            }
+        }
+        // 命令也可能是在别的工作树里运行的，所以只在分支建在它的提交上时才算数。
+        then.into_iter().filter(|main| main != branch).find(|main| {
+            let mut command = self.command(root);
+            command.args(["merge-base", "--is-ancestor", oid]);
+            command.arg(format!("refs/heads/{main}"));
+            self.run(&mut command, STATUS_TIMEOUT, cancel).is_ok()
+        })
+    }
+
+    /// 主工作树现在签出的分支；没有签出分支时为 `None`。
+    fn main_branch(&self, root: &Path, cancel: &Cancel) -> Option<String> {
+        let mut command = self.command(root);
+        command.args(["symbolic-ref", "--short", "main-worktree/HEAD"]);
+        let stdout = self.run(&mut command, STATUS_TIMEOUT, cancel).ok()?;
+        let name = String::from_utf8_lossy(&stdout).trim().to_owned();
+        (!name.is_empty()).then_some(name)
     }
 
     /// `rev` 的引用日志，新的在前：每条的时刻（Unix 秒）、写入的提交号和说明。读不了时为空。
@@ -423,7 +444,10 @@ fn branch_ref(start: &str, branch: &str, refs: &[&str]) -> Option<(String, Strin
         .or_else(|| find(false, false))
         .or_else(|| find(false, true))?;
     let (short, name) = ref_names(full)?;
-    (short != branch && short != "HEAD").then(|| (name.to_owned(), full.to_owned()))
+    // 远程名里可以有 `/`，这时 `short` 还带着远程名的后半段，所以按结尾认它自己的远程分支。
+    let own = short == branch
+        || (full.starts_with("refs/remotes/") && name.ends_with(&format!("/{branch}")));
+    (!own && short != "HEAD").then(|| (name.to_owned(), full.to_owned()))
 }
 
 /// `root` 下可能是工作树的目录：它本身、直接子目录，以及它和子目录里 `.worktrees/` 下的各目录。

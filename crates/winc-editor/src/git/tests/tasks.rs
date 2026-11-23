@@ -160,6 +160,32 @@ fn branch_changes_compare_with_the_branch_a_task_was_created_from() {
     git_at(&main, &["checkout", "-q", "master"]);
     assert_eq!(fixed(&git, Path::new(&path)), on_release);
 
+    // 在主工作树里 `git checkout -b`，后来才把分支签出到另一个工作树。
+    let main = release_repo(&root, "moved");
+    git_at(&main, &["checkout", "-q", "4.2.0"]);
+    git_at(&main, &["checkout", "-q", "-b", "bugfix/e"]);
+    git_at(&main, &["checkout", "-q", "master"]);
+    let path = tree("moved-fix");
+    git_at(&main, &["worktree", "add", "-q", &path, "bugfix/e"]);
+    assert_eq!(fixed(&git, Path::new(&path)), on_release);
+
+    // 克隆时直接签出 `4.2.0`，主工作树从没切换过分支；建工作树时没写起点。
+    let origin = release_repo(&root, "cloned-origin");
+    let clone = PathBuf::from(tree("cloned"));
+    let from = origin.to_string_lossy().into_owned();
+    let cloned = [
+        "clone",
+        "-q",
+        "-b",
+        "4.2.0",
+        &from,
+        &clone.to_string_lossy(),
+    ];
+    git_at(&root, &cloned);
+    let path = tree("cloned-fix");
+    git_at(&clone, &["worktree", "add", "-q", "-b", "bugfix/f", &path]);
+    assert_eq!(fixed(&git, Path::new(&path)), on_release);
+
     // 从远程分支建的分支：起点记成 `origin/4.2.0`，本地没有 `4.2.0`。
     let origin = release_repo(&root, "origin");
     let clone = tree("clone");
@@ -215,6 +241,21 @@ fn branch_changes_fall_back_when_the_source_branch_is_unknown() {
     let clone = PathBuf::from(tree("clone"));
     let from = origin.to_string_lossy().into_owned();
     git_at(&root, &["clone", "-q", &from, &clone.to_string_lossy()]);
+    git_at(&clone, &["checkout", "-q", "bugfix/c"]);
+    let found = fixed(&git, &clone);
+    assert_eq!(found, on("master", &["a.txt", "release.txt"]));
+
+    // 远程名里带 `/`：任务分支自己的远程分支同样不算来源。
+    let clone = PathBuf::from(tree("slash"));
+    let slash = [
+        "clone",
+        "-q",
+        "-o",
+        "forks/origin",
+        &from,
+        &clone.to_string_lossy(),
+    ];
+    git_at(&root, &slash);
     git_at(&clone, &["checkout", "-q", "bugfix/c"]);
     let found = fixed(&git, &clone);
     assert_eq!(found, on("master", &["a.txt", "release.txt"]));
