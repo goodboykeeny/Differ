@@ -31,7 +31,7 @@ Differ is a desktop app that groups local Git worktrees into one task by branch 
 ## Features
 
 - **Grouped by task**: scans the open folder, its immediate subfolders and their `.worktrees/` directories, plus the linked worktrees of every repository it finds. Projects with the same branch checked out form one task
-- **Two ranges**: **All changes** shows everything since the task branched off its baseline, **Uncommitted** shows only what is not committed yet
+- **Two ranges**: **All changes** shows everything since the task branch was cut from its source branch, **Uncommitted** shows only what is not committed yet
 - **Review across projects**: next and previous file stay in the same diff tab, even when the next file belongs to another project
 - **Blame in the diff**: shows line-by-line blame on the working-tree side of a task diff, and selecting a row opens that commit in the project's log
 - **Two themes**: Graphite Night is a neutral dark grey with a blue accent, Graphite Day is a warm paper white with a navy accent and a serif interface font
@@ -58,10 +58,12 @@ Replace `"$HOME/Projects"` with the folder that holds your repositories. The bui
 
 | Range | Compares | Includes |
 | :--- | :--- | :--- |
-| **All changes** | The working tree with the merge base of the nearest baseline branch | Committed and uncommitted changes |
+| **All changes** | The working tree with the merge base of the source branch | Committed and uncommitted changes |
 | **Uncommitted** | The working tree with `HEAD` | Staged, unstaged, and untracked files |
 
-When no baseline branch can be used, **All changes** tries the upstream branch, then falls back to `HEAD`.
+The source branch is the one the task branch was created from: a `bugfix/…` branch cut from `4.2.0` is compared with `4.2.0`, without adding it to the baselines. Differ reads the start point from Git's reflog, so branches made with `git checkout -b`, `git switch -c`, `git branch` and `git worktree add -b` are all recognized.
+
+When the start point cannot be read (the branch was cloned, the reflog expired, or the source branch was deleted), Differ uses the upstream branch if it has a different name from the task branch, then the nearest baseline branch, then falls back to `HEAD`.
 
 ## Configuration
 
@@ -81,7 +83,7 @@ By default Differ scans the open folder. To fix the scan folders, the filter key
 | :--- | :--- | :--- |
 | `roots` | The folders to scan | The open folder is scanned |
 | `keywords` | The filter buttons above the task list | `bugfix` and `task` |
-| `baselines` | The branches used for comparison, which are left out of the task list. `*` matches any sequence of characters | A built-in set of common trunk branch names |
+| `baselines` | The baseline branches, which are left out of the task list; a task whose source branch cannot be read is compared with the nearest one. `*` matches any sequence of characters | A built-in set of common trunk branch names |
 
 Where the config file lives:
 
