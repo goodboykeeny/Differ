@@ -248,10 +248,11 @@ impl Git {
         let stdout = self.run(&mut command, STATUS_TIMEOUT, cancel).ok()?;
         let text = String::from_utf8_lossy(&stdout);
         let refs: Vec<&str> = text.lines().collect();
+        let remotes = self.remotes(root, cancel).unwrap_or_default();
         if let Some(branch) = head_branch(root) {
             let source = (self.created_from(root, &branch, cancel))
-                .and_then(|start| branch_ref(&start, &branch, &refs))
-                .or_else(|| branch_ref(&self.upstream(root, cancel)?, &branch, &refs));
+                .and_then(|start| branch_ref(&start, &branch, &refs, &remotes))
+                .or_else(|| branch_ref(&self.upstream(root, cancel)?, &branch, &refs, &remotes));
             if let Some((name, full)) = source
                 && let Some(oid) = self.merge_base(root, &full, cancel)
             {
@@ -260,7 +261,7 @@ impl Git {
         }
         let mut candidates: Vec<(String, String)> = Vec::new();
         for full in refs {
-            if let Some((short, name)) = ref_names(full)
+            if let Some((short, name)) = ref_names(full, &remotes)
                 && short != "HEAD"
                 && rules.is_baseline(short)
             {
@@ -364,10 +365,11 @@ impl Git {
     /// 主工作树现在签出的分支；没有签出分支时为 `None`。
     fn main_branch(&self, root: &Path, cancel: &Cancel) -> Option<String> {
         let mut command = self.command(root);
-        command.args(["symbolic-ref", "--short", "main-worktree/HEAD"]);
+        command.args(["symbolic-ref", "main-worktree/HEAD"]);
         let stdout = self.run(&mut command, STATUS_TIMEOUT, cancel).ok()?;
-        let name = String::from_utf8_lossy(&stdout).trim().to_owned();
-        (!name.is_empty()).then_some(name)
+        let full = String::from_utf8_lossy(&stdout);
+        // 不用 `--short`：有同名的标签时它给出的是 `heads/4.2.0`。
+        Some(full.trim().strip_prefix("refs/heads/")?.to_owned())
     }
 
     /// `rev` 的引用日志，新的在前：每条的时刻（Unix 秒）、写入的提交号和说明。读不了时为空。
@@ -413,13 +415,18 @@ impl Git {
 
 /// 引用 `full` 的两个名字：去掉远程名的分支名（`4.2.0`）和显示用的名字（`origin/4.2.0`）。
 /// 不是分支时为 `None`。
-fn ref_names(full: &str) -> Option<(&str, &str)> {
+///
+/// 远程名里可以有 `/`，所以按 `remotes` 里的名字去掉；不在其中的按第一个 `/` 分开。
+fn ref_names<'a>(full: &'a str, remotes: &[String]) -> Option<(&'a str, &'a str)> {
     if let Some(name) = full.strip_prefix("refs/heads/") {
-        Some((name, name))
-    } else {
-        let name = full.strip_prefix("refs/remotes/")?;
-        Some((name.split_once('/').map_or(name, |(_, n)| n), name))
+        return Some((name, name));
     }
+    let name = full.strip_prefix("refs/remotes/")?;
+    let known = (remotes.iter())
+        .filter_map(|remote| name.strip_prefix(remote.as_str())?.strip_prefix('/'))
+        .min_by_key(|short| short.len());
+    let short = known.or_else(|| name.split_once('/').map(|(_, short)| short));
+    Some((short.unwrap_or(name), name))
 }
 
 /// 引用日志里一次切换分支的说明（`checkout: moving from 4.2.0 to b`）去掉前缀后的部分。
@@ -431,11 +438,16 @@ fn moved_from(subject: &str) -> Option<&str> {
 ///
 /// `start` 可以写成 `4.2.0`、`origin/4.2.0` 或完整的引用名；本地分支已经删掉时用远程上的同名
 /// 分支。`branch` 自己和它在远程上的同名分支不算来源，找到的是它们时为 `None`。
-fn branch_ref(start: &str, branch: &str, refs: &[&str]) -> Option<(String, String)> {
+fn branch_ref(
+    start: &str,
+    branch: &str,
+    refs: &[&str],
+    remotes: &[String],
+) -> Option<(String, String)> {
     let find = |local: bool, by_short: bool| {
         refs.iter().copied().find(|full| {
             (!local || full.starts_with("refs/heads/"))
-                && ref_names(full).is_some_and(|(short, name)| {
+                && ref_names(full, remotes).is_some_and(|(short, name)| {
                     *full == start || name == start || (by_short && short == start)
                 })
         })
@@ -443,11 +455,8 @@ fn branch_ref(start: &str, branch: &str, refs: &[&str]) -> Option<(String, Strin
     let full = find(true, false)
         .or_else(|| find(false, false))
         .or_else(|| find(false, true))?;
-    let (short, name) = ref_names(full)?;
-    // 远程名里可以有 `/`，这时 `short` 还带着远程名的后半段，所以按结尾认它自己的远程分支。
-    let own = short == branch
-        || (full.starts_with("refs/remotes/") && name.ends_with(&format!("/{branch}")));
-    (!own && short != "HEAD").then(|| (name.to_owned(), full.to_owned()))
+    let (short, name) = ref_names(full, remotes)?;
+    (short != branch && short != "HEAD").then(|| (name.to_owned(), full.to_owned()))
 }
 
 /// `root` 下可能是工作树的目录：它本身、直接子目录，以及它和子目录里 `.worktrees/` 下的各目录。

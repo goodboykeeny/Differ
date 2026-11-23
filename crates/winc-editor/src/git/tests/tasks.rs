@@ -186,6 +186,15 @@ fn branch_changes_compare_with_the_branch_a_task_was_created_from() {
     git_at(&clone, &["worktree", "add", "-q", "-b", "bugfix/f", &path]);
     assert_eq!(fixed(&git, Path::new(&path)), on_release);
 
+    // 主工作树一直签出 `4.2.0`，仓库里还有同名的标签。
+    let main = release_repo(&root, "tagged");
+    git_at(&main, &["checkout", "-q", "4.2.0"]);
+    git_at(&main, &["tag", "4.2.0"]);
+    git_at(&main, &["reflog", "expire", "--expire=all", "HEAD"]);
+    let path = tree("tagged-fix");
+    git_at(&main, &["worktree", "add", "-q", "-b", "bugfix/g", &path]);
+    assert_eq!(fixed(&git, Path::new(&path)), on_release);
+
     // 从远程分支建的分支：起点记成 `origin/4.2.0`，本地没有 `4.2.0`。
     let origin = release_repo(&root, "origin");
     let clone = tree("clone");
@@ -259,6 +268,15 @@ fn branch_changes_fall_back_when_the_source_branch_is_unknown() {
     git_at(&clone, &["checkout", "-q", "bugfix/c"]);
     let found = fixed(&git, &clone);
     assert_eq!(found, on("master", &["a.txt", "release.txt"]));
+
+    // 来源是另一个名字空间下的同名远程分支：它不是任务分支自己的远程分支，照常算来源。
+    git_at(&origin, &["branch", "-q", "team/bugfix/h", "4.2.0"]);
+    let clone = PathBuf::from(tree("namespaced"));
+    git_at(&root, &["clone", "-q", &from, &clone.to_string_lossy()]);
+    let start = ["checkout", "-q", "-b", "bugfix/h", "origin/team/bugfix/h"];
+    git_at(&clone, &start);
+    let found = fixed(&git, &clone);
+    assert_eq!(found, on("origin/team/bugfix/h", &["a.txt"]));
 
     // 在另一个工作树里建的分支，没写起点：主工作树没签出过那个分支，猜不出来源，按基线名单比。
     let main = release_repo(&root, "elsewhere");
