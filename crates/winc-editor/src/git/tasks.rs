@@ -11,12 +11,16 @@ use super::*;
 /// 最多拿多少个基线分支与任务分支求合并基（个）：每个候选要运行两次 `git`。
 const BASE_CANDIDATES: usize = 24;
 
+/// `git checkout -b` 在分支的日志和 `HEAD` 的日志里各记一条，两条的时刻最多相差多少（秒）。
+const CREATED_WITHIN: u64 = 2;
+
 /// 归并任务时用到的规则。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskRules {
     /// 基线分支的写法：`*`（或 `.*`）匹配任意一段文字，其余按字面比较。
     ///
-    /// 签出基线分支的工作树不算任务，任务的改动相对最近的基线分支计算。
+    /// 签出基线分支的工作树不算任务；查不到任务分支是从哪个分支建的时，任务的改动相对最近的
+    /// 基线分支计算。
     pub baselines: Vec<String>,
 }
 
@@ -163,8 +167,8 @@ impl Git {
 
     /// 列出工作树 `root` 在 `range` 内有改动的文件。
     ///
-    /// 相对基线时左侧是 `HEAD` 与最近的基线分支的合并基；找不到基线分支时退回上游分支，再
-    /// 退回 `HEAD`。未跟踪的文件算新增。
+    /// 相对基线时左侧是 `HEAD` 与任务分支的来源的合并基：来源是建分支时的起点分支，查不到时是
+    /// 最近的基线分支，再退回上游分支、`HEAD`。未跟踪的文件算新增。
     ///
     /// # Errors
     ///
@@ -224,9 +228,10 @@ impl Git {
         })
     }
 
-    /// 返回 `HEAD` 与最近的基线分支的合并基：基线分支的名字和合并基的提交号。
+    /// 返回 `HEAD` 与任务分支的来源的合并基：来源分支的名字和合并基的提交号。
     ///
-    /// 「最近」指合并基之后 `HEAD` 上的提交最少。没有基线分支时用上游分支。
+    /// 来源依次是：建任务分支时的起点分支、与任务分支不同名的上游分支、最近的基线分支。
+    /// 「最近」指合并基之后 `HEAD` 上的提交最少。都没有时用上游分支。
     fn task_base(
         &self,
         root: &Path,
@@ -242,16 +247,23 @@ impl Git {
         ]);
         let stdout = self.run(&mut command, STATUS_TIMEOUT, cancel).ok()?;
         let text = String::from_utf8_lossy(&stdout);
+        let refs: Vec<&str> = text.lines().collect();
+        if let Some(branch) = head_branch(root) {
+            let source = (self.created_from(root, &branch, cancel))
+                .and_then(|start| branch_ref(&start, &branch, &refs))
+                .or_else(|| branch_ref(&self.upstream(root, cancel)?, &branch, &refs));
+            if let Some((name, full)) = source
+                && let Some(oid) = self.merge_base(root, &full, cancel)
+            {
+                return Some((name, oid));
+            }
+        }
         let mut candidates: Vec<(String, String)> = Vec::new();
-        for full in text.lines() {
-            let (short, name) = if let Some(name) = full.strip_prefix("refs/heads/") {
-                (name, name)
-            } else if let Some(name) = full.strip_prefix("refs/remotes/") {
-                (name.split_once('/').map_or(name, |(_, n)| n), name)
-            } else {
-                continue;
-            };
-            if short != "HEAD" && rules.is_baseline(short) {
+        for full in refs {
+            if let Some((short, name)) = ref_names(full)
+                && short != "HEAD"
+                && rules.is_baseline(short)
+            {
                 candidates.push((name.to_owned(), full.to_owned()));
             }
         }
@@ -262,15 +274,9 @@ impl Git {
         let mut best: Option<(usize, String, String)> = None;
         let mut counted: BTreeMap<String, usize> = BTreeMap::new();
         for (name, full) in candidates {
-            let mut command = self.command(root);
-            command.args(["merge-base", "HEAD"]).arg(&full);
-            let Ok(stdout) = self.run(&mut command, STATUS_TIMEOUT, cancel) else {
+            let Some(oid) = self.merge_base(root, &full, cancel) else {
                 continue;
             };
-            let oid = String::from_utf8_lossy(&stdout).trim().to_owned();
-            if oid.is_empty() {
-                continue;
-            }
             let ahead = match counted.get(&oid) {
                 Some(ahead) => *ahead,
                 None => {
@@ -290,6 +296,89 @@ impl Git {
         best.map(|(_, name, oid)| (name, oid))
     }
 
+    /// `HEAD` 与 `rev` 的合并基；没有共同的提交时为 `None`。
+    fn merge_base(&self, root: &Path, rev: &str, cancel: &Cancel) -> Option<String> {
+        let mut command = self.command(root);
+        command.args(["merge-base", "HEAD"]).arg(rev);
+        let stdout = self.run(&mut command, STATUS_TIMEOUT, cancel).ok()?;
+        let oid = String::from_utf8_lossy(&stdout).trim().to_owned();
+        (!oid.is_empty()).then_some(oid)
+    }
+
+    /// 建分支 `branch` 时的起点，按引用日志里记的写法（`4.2.0`、`origin/4.2.0`）。
+    ///
+    /// `git branch b 4.2.0`、`git worktree add -b b … 4.2.0` 把起点记在分支的日志里。没写起点
+    /// 时记的是 `HEAD`：`git checkout -b b` 在 `HEAD` 的日志里同时记下从哪个分支切过来；
+    /// `git worktree add -b b …` 则看主工作树当时签出的分支。日志过期被清掉、分支是在别处建的
+    /// 时为 `None`。
+    fn created_from(&self, root: &Path, branch: &str, cancel: &Cancel) -> Option<String> {
+        let created = self.reflog(root, &format!("refs/heads/{branch}"), cancel);
+        let (at, oid, subject) = created.last()?;
+        let start = subject.strip_prefix("branch: Created from ")?;
+        if start != "HEAD" {
+            return Some(start.to_owned());
+        }
+        let arrived = format!(" to {branch}");
+        let switched = (self.reflog(root, "HEAD", cancel).iter())
+            .filter(|(moved, ..)| moved.abs_diff(*at) <= CREATED_WITHIN)
+            .find_map(|(.., subject)| {
+                Some(moved_from(subject)?.strip_suffix(&arrived)?.to_owned())
+            });
+        if switched.is_some() {
+            return switched;
+        }
+        // 主工作树在那一刻之前最后一次切换分支，切到的就是当时签出的分支。命令也可能是在别的
+        // 工作树里运行的，所以只在分支建在它的提交上时才算数。日志的时刻只精确到秒，同一秒里
+        // 的几次切换分不出先后，逐个试。
+        let log = self.reflog(root, "main-worktree/HEAD", cancel);
+        let moves = log.iter().filter_map(|(moved, _, subject)| {
+            let to = moved_from(subject)?.rsplit_once(" to ")?.1;
+            (moved <= at).then_some((moved, to))
+        });
+        for (moved, main) in moves {
+            let mut command = self.command(root);
+            command.args(["merge-base", "--is-ancestor", oid]);
+            command.arg(format!("refs/heads/{main}"));
+            if self.run(&mut command, STATUS_TIMEOUT, cancel).is_ok() {
+                return Some(main.to_owned());
+            }
+            if moved < at {
+                break;
+            }
+        }
+        None
+    }
+
+    /// `rev` 的引用日志，新的在前：每条的时刻（Unix 秒）、写入的提交号和说明。读不了时为空。
+    fn reflog(&self, root: &Path, rev: &str, cancel: &Cancel) -> Vec<(u64, String, String)> {
+        let mut command = self.command(root);
+        command.args(["reflog", "show", "--date=unix"]);
+        command.args(["--format=%gd%x09%H%x09%gs", rev]);
+        let Ok(stdout) = self.run(&mut command, STATUS_TIMEOUT, cancel) else {
+            return Vec::new();
+        };
+        String::from_utf8_lossy(&stdout)
+            .lines()
+            .filter_map(|line| {
+                // 每行形如 `b@{1700000000}<TAB>提交号<TAB>branch: Created from 4.2.0`。
+                let mut fields = line.splitn(3, '\t');
+                let at = fields.next()?.rsplit_once("@{")?.1.strip_suffix('}')?;
+                let oid = fields.next()?.to_owned();
+                Some((at.parse().ok()?, oid, fields.next()?.to_owned()))
+            })
+            .collect()
+    }
+
+    /// 当前分支的上游分支，写成 `origin/4.2.0`；没有设置时为 `None`。
+    fn upstream(&self, root: &Path, cancel: &Cancel) -> Option<String> {
+        let mut command = self.command(root);
+        command.args(["rev-parse", "--abbrev-ref", "--symbolic-full-name"]);
+        command.arg("@{upstream}");
+        let stdout = self.run(&mut command, STATUS_TIMEOUT, cancel).ok()?;
+        let name = String::from_utf8_lossy(&stdout).trim().to_owned();
+        (!name.is_empty()).then_some(name)
+    }
+
     /// 把 `rev` 解析成提交号；解析不了（还没有提交）时返回 `None`。
     fn rev(&self, root: &Path, rev: &str, cancel: &Cancel) -> Option<String> {
         let mut command = self.command(root);
@@ -299,6 +388,42 @@ impl Git {
         let oid = String::from_utf8_lossy(&stdout).trim().to_owned();
         (!oid.is_empty()).then_some(oid)
     }
+}
+
+/// 引用 `full` 的两个名字：去掉远程名的分支名（`4.2.0`）和显示用的名字（`origin/4.2.0`）。
+/// 不是分支时为 `None`。
+fn ref_names(full: &str) -> Option<(&str, &str)> {
+    if let Some(name) = full.strip_prefix("refs/heads/") {
+        Some((name, name))
+    } else {
+        let name = full.strip_prefix("refs/remotes/")?;
+        Some((name.split_once('/').map_or(name, |(_, n)| n), name))
+    }
+}
+
+/// 引用日志里一次切换分支的说明（`checkout: moving from 4.2.0 to b`）去掉前缀后的部分。
+fn moved_from(subject: &str) -> Option<&str> {
+    subject.strip_prefix("checkout: moving from ")
+}
+
+/// 在 `refs` 里找 `start` 指的分支，返回显示用的名字和完整的引用名。
+///
+/// `start` 可以写成 `4.2.0`、`origin/4.2.0` 或完整的引用名；本地分支已经删掉时用远程上的同名
+/// 分支。`branch` 自己和它在远程上的同名分支不算来源，找到的是它们时为 `None`。
+fn branch_ref(start: &str, branch: &str, refs: &[&str]) -> Option<(String, String)> {
+    let find = |local: bool, by_short: bool| {
+        refs.iter().copied().find(|full| {
+            (!local || full.starts_with("refs/heads/"))
+                && ref_names(full).is_some_and(|(short, name)| {
+                    *full == start || name == start || (by_short && short == start)
+                })
+        })
+    };
+    let full = find(true, false)
+        .or_else(|| find(false, false))
+        .or_else(|| find(false, true))?;
+    let (short, name) = ref_names(full)?;
+    (short != branch && short != "HEAD").then(|| (name.to_owned(), full.to_owned()))
 }
 
 /// `root` 下可能是工作树的目录：它本身、直接子目录，以及它和子目录里 `.worktrees/` 下的各目录。

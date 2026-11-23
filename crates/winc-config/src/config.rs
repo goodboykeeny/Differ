@@ -269,8 +269,8 @@ pub struct Config {
     /// 筛选任务的关键字：任务视图为每个关键字提供一个筛选项，只列出分支名含有该关键字的任务。
     /// 未设置时为 [`Config::TASK_KEYWORDS`]。
     pub task_keywords: Vec<String>,
-    /// 基线分支的写法（`*` 匹配任意一段文字）：签出基线分支的工作树不算任务，任务的改动相对
-    /// 最近的基线分支计算。未设置时为 `master`、`main`、`develop`、`dev`、`baseline-*`。
+    /// 基线分支的写法（`*` 匹配任意一段文字）：签出基线分支的工作树不算任务；查不到任务分支是
+    /// 从哪个分支建的时，任务的改动相对最近的基线分支计算。未设置时为 `master`、`main`、`develop`、`dev`、`baseline-*`。
     pub task_baselines: Vec<String>,
     /// 保存时先格式化，默认为否。
     pub format_on_save: Option<bool>,
